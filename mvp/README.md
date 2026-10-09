@@ -2,7 +2,7 @@
 
 Mantenedor de mallas curriculares chilenas por **curso, nivel y Objetivo de Aprendizaje (OA)**, pensado para profesores que trabajan con estudiantes TEA y del Programa de Integración Escolar (PIE).
 
-Es una demo para mostrar al equipo. Todavía no incluye el núcleo de Metis, que es **la IA que guía a los estudiantes**. Construye la base sobre la que ese agente va a trabajar: cursos, OA, adecuaciones y planificaciones.
+Es una demo para mostrar al equipo. Todavía no incluye el núcleo de Metis: **las evaluaciones con Evalia**, el asistente IA que va integrado dentro de cada evaluación y guía al estudiante sin darle la respuesta (ver el repo `evalia`). Construye la base sobre la que se van a armar esas evaluaciones: cursos, OA, adecuaciones y planificaciones.
 
 ## Levantarlo en local
 
@@ -36,7 +36,7 @@ Para empezar desde cero (borra los datos): `docker compose down -v && docker com
   - Asignar varios OA a un curso a la vez.
   - **Importar CSV**.
 - **Planificación:** planificación semanal por curso, con OA del curso, actividades y adecuaciones TEA.
-- Materiales, Notas y Guía IA quedan como *próximamente*.
+- Materiales, Notas y **Evaluaciones** (donde irá Evalia) quedan como *próximamente*.
 
 ## Datos
 

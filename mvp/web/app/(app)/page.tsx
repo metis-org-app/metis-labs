@@ -74,13 +74,13 @@ export default function DashboardPage() {
 
           <div className="card ia-teaser">
             <div>
-              <h2>✨ Guía IA para estudiantes</h2>
+              <h2>📝 Evaluaciones con Evalia</h2>
               <p className="muted">
-                El núcleo de Metis: un agente que acompaña a cada estudiante en los OA de su curso, respetando sus adecuaciones, sin
-                hacerle el trabajo. Esta demo cubre la gestión curricular sobre la que se construirá.
+                El núcleo de Metis: evaluaciones por curso y OA con Evalia integrada, que guía al estudiante mientras responde sin darle
+                la respuesta. Esta demo cubre la gestión curricular sobre la que se van a construir.
               </p>
             </div>
-            <Link className="btn btn-ghost" href="/guia-ia">
+            <Link className="btn btn-ghost" href="/evaluaciones">
               Ver propuesta
             </Link>
           </div>

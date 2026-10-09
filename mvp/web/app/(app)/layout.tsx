@@ -14,8 +14,8 @@ const NAV = [
   { href: '/planificacion', icon: '🗓️', label: 'Planificación' },
   { href: '/curriculum', icon: '📚', label: 'Currículum (OA)' },
   { href: '/materiales', icon: '📁', label: 'Materiales' },
-  { href: '/notas', icon: '📝', label: 'Notas' },
-  { href: '/guia-ia', icon: '✨', label: 'Guía IA', soon: true },
+  { href: '/notas', icon: '🗒️', label: 'Notas' },
+  { href: '/evaluaciones', icon: '📝', label: 'Evaluaciones', soon: true },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
