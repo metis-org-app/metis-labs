@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+import { confirmar } from '@/components/confirm';
 import type { Asignatura, Curso, Nivel, Oa } from '@/lib/types';
 import { Empty, ErrorBox, Modal, PageHead } from '@/components/ui';
 
@@ -71,7 +72,7 @@ export default function CurriculumPage() {
   };
 
   const eliminar = async (oa: Oa) => {
-    if (!confirm(`¿Eliminar ${oa.codigo} de ${oa.asignatura} ${oa.nivel} del currículum?`)) return;
+    if (!(await confirmar(`¿Eliminar ${oa.codigo} de ${oa.asignatura} ${oa.nivel} del currículum?`))) return;
     try {
       await api(`/oas/${oa.id}`, { method: 'DELETE' });
       cargar();

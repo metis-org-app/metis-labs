@@ -3,11 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { api, setToken } from '@/lib/api';
+import { DEMO } from '@/lib/demo';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('profe@metis.cl');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState(DEMO ? 'metis123' : '');
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 

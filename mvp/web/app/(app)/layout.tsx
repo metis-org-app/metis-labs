@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api, getToken, setToken } from '@/lib/api';
+import { ConfirmHost } from '@/components/confirm';
+import { DEMO } from '@/lib/demo';
 
 type Me = { nombre: string; rol: string };
 
@@ -83,8 +85,40 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {health}
           </div>
         </header>
+        {DEMO && <DemoBanner />}
         <main className="content">{children}</main>
       </div>
+      <ConfirmHost />
+    </div>
+  );
+}
+
+function DemoBanner() {
+  const [confirmando, setConfirmando] = useState(false);
+  const restablecer = async () => {
+    await api('/__demo/reset', { method: 'POST' });
+    window.location.reload();
+  };
+  return (
+    <div className="demo-banner">
+      <span>
+        Demo en el navegador: los cambios se guardan solo en este dispositivo. Los estudiantes son ficticios.
+      </span>
+      {confirmando ? (
+        <span className="demo-actions">
+          ¿Volver a los datos iniciales?
+          <button className="btn btn-danger btn-sm" onClick={restablecer}>
+            Restablecer
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setConfirmando(false)}>
+            Cancelar
+          </button>
+        </span>
+      ) : (
+        <button className="btn btn-ghost btn-sm" onClick={() => setConfirmando(true)}>
+          Restablecer datos
+        </button>
+      )}
     </div>
   );
 }

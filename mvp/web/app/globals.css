@@ -119,6 +119,7 @@ code { background: #eef2f6; padding: 1px 5px; border-radius: 4px; }
 .btn-slate:hover { background: #5a6879; }
 .btn-ghost { background: #eef1f5; color: var(--navy-800); }
 .btn-ghost:hover { background: #e2e7ee; }
+.btn-danger { background: var(--red); color: #fff; }
 .btn-danger-ghost { background: #fdecec; color: #b42326; }
 .btn-sm { padding: 7px 14px; font-size: 13px; }
 .btn-block { width: 100%; }
@@ -270,3 +271,11 @@ input:disabled, select:disabled { background: #f3f5f8; color: #9aa6b4; }
 .login-card { background: #fff; border-radius: 18px; padding: 36px; width: min(420px, 100%); display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3); }
 .login-brand { font-size: 32px; font-weight: 800; color: var(--navy-900); }
 .hint { text-align: center; font-size: 13px; color: var(--muted); margin: 0; }
+
+/* ---------- Modo demo (artifact) ---------- */
+.demo-banner {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: #fff8e1; color: #6b5300; border-bottom: 1px solid #f0dfa6; padding: 10px 32px; font-size: 14px;
+}
+.demo-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 980px) { .demo-banner { padding: 10px 16px; } }

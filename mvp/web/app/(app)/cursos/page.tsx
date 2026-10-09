@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+import { confirmar } from '@/components/confirm';
 import type { Asignatura, Curso, CursoOa, EstudianteBreve, Nivel, Oa, Panorama } from '@/lib/types';
 import { DxBadge, Empty, ErrorBox, Modal, PageHead } from '@/components/ui';
 
@@ -38,7 +39,7 @@ function Cursos() {
   const seleccionar = (id: number) => router.replace(`/cursos?id=${id}`, { scroll: false });
 
   const eliminar = async (c: Curso) => {
-    if (!confirm(`¿Eliminar ${c.nombre} (${c.anio})? Se quitarán sus OA asignados y planificaciones.`)) return;
+    if (!(await confirmar(`¿Eliminar ${c.nombre} (${c.anio})? Se quitarán sus OA asignados y planificaciones.`))) return;
     try {
       await api(`/cursos/${c.id}`, { method: 'DELETE' });
       router.replace('/cursos');
@@ -187,7 +188,7 @@ function OasCurso({ curso, onChange }: { curso: Curso; onChange: () => void }) {
   }, [cargar]);
 
   const quitar = async (oa: CursoOa) => {
-    if (!confirm(`¿Quitar ${oa.codigo} (${oa.asignatura}) de este curso?`)) return;
+    if (!(await confirmar(`¿Quitar ${oa.codigo} (${oa.asignatura}) de este curso?`))) return;
     await api(`/cursos/${curso.id}/oas/${oa.id}`, { method: 'DELETE' });
     cargar();
     onChange();

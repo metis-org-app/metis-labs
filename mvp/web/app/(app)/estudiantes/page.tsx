@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { confirmar } from '@/components/confirm';
 import { rutValido } from '@/lib/rut';
 import type { Curso, Estudiante, TipoPie } from '@/lib/types';
 import { DxBadge, Empty, ErrorBox, PageHead } from '@/components/ui';
@@ -95,7 +96,7 @@ export default function EstudiantesPage() {
   };
 
   const eliminar = async (e: Estudiante) => {
-    if (!confirm(`¿Eliminar a ${e.nombre} ${e.apellido}?`)) return;
+    if (!(await confirmar(`¿Eliminar a ${e.nombre} ${e.apellido}?`))) return;
     await api(`/estudiantes/${e.id}`, { method: 'DELETE' });
     cargar();
   };

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { confirmar } from '@/components/confirm';
 import type { Curso, CursoOa, Planificacion } from '@/lib/types';
 import { Empty, ErrorBox, Modal, PageHead } from '@/components/ui';
 
@@ -35,7 +36,7 @@ export default function PlanificacionPage() {
   useEffect(cargar, [cargar]);
 
   const eliminar = async (p: Planificacion) => {
-    if (!confirm(`¿Eliminar la planificación “${p.titulo}”?`)) return;
+    if (!(await confirmar(`¿Eliminar la planificación “${p.titulo}”?`))) return;
     await api(`/planificaciones/${p.id}`, { method: 'DELETE' });
     cargar();
   };
