@@ -1,7 +1,7 @@
 'use client';
 
 import { CSSProperties, useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, getToken } from '@/lib/api';
 import { TIPO_MATERIAL } from '@/lib/format';
 import type { Asignatura, Curso, Material, Nivel, Oa, TipoMaterial } from '@/lib/types';
 import { confirmar } from './confirm';
@@ -70,6 +70,15 @@ export function MaterialViewer({ id, onClose, onEdit, onDeleted }: { id: number;
               ))}
             </div>
           )}
+          {m.archivoNombre && (
+            <p>
+              Archivo:{' '}
+              <button className="link-btn" onClick={() => descargarArchivo(m.id, m.archivoNombre!)}>
+                {m.archivoNombre}
+              </button>{' '}
+              <span className="muted small">{m.archivoTamano ? `${Math.max(1, Math.round(m.archivoTamano / 1024))} KB` : ''}</span>
+            </p>
+          )}
           {m.url && (
             <p>
               Enlace:{' '}
@@ -91,6 +100,16 @@ export function MaterialViewer({ id, onClose, onEdit, onDeleted }: { id: number;
       )}
     </Modal>
   );
+}
+
+// La descarga lleva el token de sesión, por eso se pide con fetch y se entrega como blob.
+async function descargarArchivo(id: number, nombre: string) {
+  const res = await fetch(`/api/materiales/${id}/archivo`, { headers: { authorization: `Bearer ${getToken() ?? ''}` } });
+  if (!res.ok) return;
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement('a'), { href: url, download: nombre });
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 type Form = {

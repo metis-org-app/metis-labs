@@ -23,6 +23,9 @@ services:
       Seed__DemoEmail: ${DEMO_EMAIL:-profe@metis.cl}
       Seed__DemoPassword: ${DEMO_PASSWORD:-metis123}
       DataProtection__KeysPath: /keys
+      # IA (Claude). Sin API key, Metis responde con reglas y la creación con IA arma un esquema de ejemplo.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      Ia__Modelo: ${IA_MODELO:-claude-opus-5-5}
     volumes:
       - ./data:/data:ro
       - apikeys:/keys

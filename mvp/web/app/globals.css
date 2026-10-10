@@ -484,3 +484,91 @@ a.chip:hover { background: #dde3ea; text-decoration: none; }
 .asig-checks .check-row { margin: 0; align-items: center; gap: 8px; }
 .asig-checks .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .link-btn { background: none; border: 0; padding: 0; color: #1d4ed8; cursor: pointer; font: inherit; text-decoration: underline; }
+
+/* ---------- Evalia en Metis: crear evaluaciones con IA ---------- */
+.empezar { text-align: center; padding: 26px 0 10px; }
+.empezar-kicker { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--metis); background: var(--metis-soft); padding: 4px 10px; border-radius: 99px; }
+.empezar h2 { font-size: 30px; margin: 10px 0 6px; }
+.empezar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin: 26px auto 18px; max-width: 980px; text-align: left; }
+.empezar-card { display: flex; flex-direction: column; padding: 0; border: 1px solid var(--border); border-radius: 14px; background: #fff; cursor: pointer; overflow: hidden; font: inherit; color: inherit; text-align: left; transition: transform 0.15s, box-shadow 0.15s; }
+.empezar-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(16, 32, 56, 0.12); }
+.empezar-card:focus-visible { outline: 3px solid var(--metis); outline-offset: 2px; }
+.empezar-icono { display: grid; place-items: center; height: 110px; font-size: 34px; }
+.op-ia .empezar-icono { background: var(--metis-soft); color: var(--metis); }
+.op-pegar .empezar-icono { background: var(--navy-800); color: #fff; }
+.op-archivo .empezar-icono { background: #e8f6ef; color: var(--green); }
+.op-cero .empezar-icono { background: var(--soft); color: var(--muted); }
+.empezar-texto { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px 18px; }
+.empezar-texto span { font-size: 13px; color: var(--muted); }
+
+.crear-ia { max-width: 980px; margin: 0 auto; }
+.pasos { display: flex; flex-wrap: wrap; gap: 6px 22px; list-style: none; padding: 0; margin: 0 0 18px; }
+.pasos li { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; font-weight: 600; }
+.pasos li span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border); font-size: 12px; background: #fff; }
+.pasos li.actual { color: var(--text); }
+.pasos li.actual span { border-color: var(--metis); background: var(--metis); color: #fff; }
+.pasos li.hecho span { border-color: var(--green); background: var(--green); color: #fff; }
+.idea-box { background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+.idea-box textarea { width: 100%; border: 0; padding: 16px 18px; font: inherit; resize: vertical; min-height: 110px; }
+.idea-box textarea:focus { outline: none; }
+.idea-box:focus-within { border-color: var(--metis); }
+.idea-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--border); padding: 8px 10px; background: var(--soft); }
+.idea-bar .btn-primary { margin-left: auto; }
+.idea-opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 14px 0 8px; }
+.idea-tipos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.chip-check { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 99px; padding: 4px 12px; font-size: 13px; font-weight: 500; cursor: pointer; background: #fff; }
+.chip-check.on { border-color: var(--metis); background: var(--metis-soft); color: #3b2fa8; }
+.chip-check input { margin: 0; }
+.idea-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; }
+@media (max-width: 860px) { .idea-grid { grid-template-columns: 1fr; } }
+.oa-elegir { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; }
+.oa-elegir li label { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; padding: 7px 4px; border-bottom: 1px solid #eef1f5; font-weight: 400; cursor: pointer; }
+.oa-elegir input { margin-top: 3px; }
+
+.procesando { text-align: center; padding: 50px 20px; }
+.procesando-avatar { width: 150px; height: 150px; object-fit: contain; border-radius: 50%; background: #fff; box-shadow: 0 0 0 8px var(--metis-soft); animation: respirar 2.4s ease-in-out infinite; }
+.procesando-texto { font-size: 18px; font-weight: 600; margin: 22px 0 14px; }
+.procesando-barra { width: min(360px, 80%); height: 6px; margin: 0 auto 14px; background: var(--metis-soft); border-radius: 99px; overflow: hidden; }
+.procesando-barra span { display: block; width: 40%; height: 100%; background: var(--metis); border-radius: 99px; animation: barrido 1.4s ease-in-out infinite; }
+@keyframes respirar { 50% { transform: scale(1.04); } }
+@keyframes barrido { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+@media (prefers-reduced-motion: reduce) { .procesando-avatar, .procesando-barra span { animation: none; } }
+
+.esquema-head { display: grid; grid-template-columns: 1fr 160px; gap: 12px; }
+.esquema-head .span-all { grid-column: 1 / -1; }
+.pregunta-pauta summary { cursor: pointer; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pregunta-pauta[open] summary { margin-bottom: 8px; }
+.pregunta-pauta label { margin-bottom: 8px; }
+.fuente-chip { font-size: 12px; background: var(--soft); border: 1px solid var(--border); border-radius: 99px; padding: 1px 9px; color: var(--muted); max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Evalia en Metis: rendición del estudiante ---------- */
+.metis-img { width: 42px; height: 42px; border-radius: 50%; object-fit: contain; background: #fff; box-shadow: 0 0 0 2px var(--metis-soft); flex-shrink: 0; }
+.metis-img.grande { width: 150px; height: 150px; margin: 0 auto; box-shadow: 0 0 0 8px var(--metis-soft); }
+.bienvenida { gap: 12px; }
+.bienvenida-burbuja { text-align: left; background: #f0fbf4; border: 1px solid #c9eed8; border-radius: 14px; padding: 14px 16px; min-height: 96px; line-height: 1.6; }
+.cursor { display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: text-bottom; background: var(--green); animation: parpadeo 0.9s steps(2) infinite; }
+@keyframes parpadeo { 50% { opacity: 0; } }
+.btn.listo { box-shadow: 0 0 0 4px rgba(18, 163, 107, 0.18); }
+.rendir-progreso { display: flex; align-items: center; gap: 8px; min-width: 150px; }
+.barra-progreso { flex: 1; height: 7px; background: #e6ebf1; border-radius: 99px; overflow: hidden; }
+.barra-progreso span { display: block; height: 100%; background: var(--green); border-radius: 99px; transition: width 0.3s; }
+.en-linea { color: var(--green); display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.en-linea::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+.btn-mic { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--navy-800); color: #fff; cursor: pointer; flex-shrink: 0; font-size: 16px; }
+.btn-mic.activo { background: var(--red); animation: latido 1.2s ease-in-out infinite; }
+@keyframes latido { 50% { box-shadow: 0 0 0 6px rgba(214, 64, 69, 0.2); } }
+@media (prefers-reduced-motion: reduce) { .cursor, .btn-mic.activo { animation: none; } }
+@media (max-width: 720px) { .rendir-progreso { display: none; } }
+.compartir { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.compartir .qr { border: 1px solid var(--border); border-radius: 12px; padding: 8px; background: #fff; }
+.compartir-acciones { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 10px; }
+.compartir-botones { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- Evalia en Metis: reportes ---------- */
+.lista-dudas { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.lista-dudas li { border: 1px solid var(--border); border-left: 4px solid var(--metis); border-radius: 10px; padding: 10px 14px; }
+.lista-dudas p { margin: 4px 0 0; }
+.duda-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.toolbar.compacta { margin: 0; gap: 8px; }
+.nivel-tag.ia { display: inline-block; background: var(--metis-soft); color: #3b2fa8; padding: 0 6px; border-radius: 6px; }
+.oa-elegir .oa-tag { flex-shrink: 0; }

@@ -145,6 +145,11 @@ function EvaluacionView() {
 function LinkModal({ token, titulo, curso, onClose }: { token: string; titulo: string; curso: string; onClose: () => void }) {
   const url = typeof window === 'undefined' ? '' : `${window.location.origin}/rendir/${token}`;
   const [copiado, setCopiado] = useState(false);
+  const [qr, setQr] = useState<string | null>(null);
+  useEffect(() => {
+    // El QR se genera en el navegador: sirve para proyectarlo en la sala y que los estudiantes entren desde el celular.
+    import('qrcode').then((m) => m.toDataURL(url, { width: 220, margin: 1, color: { dark: '#0c1f38' } })).then(setQr).catch(() => setQr(null));
+  }, [url]);
   const copiar = async () => {
     try {
       await navigator.clipboard.writeText(url);
@@ -153,18 +158,40 @@ function LinkModal({ token, titulo, curso, onClose }: { token: string; titulo: s
       (document.getElementById('link-eval') as HTMLInputElement | null)?.select();
     }
   };
+  const mensaje = `${titulo} (${curso}): entra con tu RUT en ${url}`;
   return (
-    <Modal title="Link para estudiantes" onClose={onClose}>
+    <Modal title="Compartir con los estudiantes" onClose={onClose}>
       <p>
         Comparte este link con {curso}. Cada estudiante entra con su RUT, rinde “{titulo}” con Metis a su lado y entrega una sola vez.
       </p>
-      <div className="copy-row">
-        <input id="link-eval" readOnly value={url} onFocus={(e) => e.target.select()} />
-        <button className="btn btn-primary" onClick={copiar}>
-          {copiado ? 'Copiado' : 'Copiar'}
-        </button>
+      <div className="compartir">
+        {qr && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={qr} alt={`Código QR del link de ${titulo}`} className="qr" width={180} height={180} />
+        )}
+        <div className="compartir-acciones">
+          <div className="copy-row">
+            <input id="link-eval" readOnly value={url} onFocus={(e) => e.target.select()} />
+            <button className="btn btn-primary" onClick={copiar}>
+              {copiado ? 'Copiado' : 'Copiar'}
+            </button>
+          </div>
+          <div className="compartir-botones">
+            <a className="btn btn-ghost btn-sm" href={`https://wa.me/?text=${encodeURIComponent(mensaje)}`} target="_blank" rel="noreferrer">
+              WhatsApp
+            </a>
+            <a className="btn btn-ghost btn-sm" href={`mailto:?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(mensaje)}`}>
+              Correo
+            </a>
+            {qr && (
+              <a className="btn btn-ghost btn-sm" href={qr} download={`qr-${token}.png`}>
+                Descargar QR
+              </a>
+            )}
+          </div>
+          <p className="muted small">Proyecta el código QR en la sala: los estudiantes lo escanean con el celular. Los que tienen adecuaciones por OA ven solo sus preguntas.</p>
+        </div>
       </div>
-      <p className="muted small">Los estudiantes con adecuaciones por OA verán solo las preguntas que les corresponden.</p>
       <div className="modal-actions">
         <a className="btn btn-ghost" href={url} target="_blank" rel="noreferrer">
           Abrir

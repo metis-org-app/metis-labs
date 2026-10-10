@@ -24,6 +24,11 @@ if (!string.IsNullOrEmpty(keysPath))
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
+// IA (Claude): sin ANTHROPIC_API_KEY la app funciona igual, con el asistente por reglas y esquemas de ejemplo.
+builder.Services.AddSingleton<MetisCurriculum.Api.Domain.Ia.ClienteIa>();
+builder.Services.AddSingleton<MetisCurriculum.Api.Domain.Ia.GeneradorEvaluaciones>();
+builder.Services.AddSingleton<MetisCurriculum.Api.Domain.Ia.AsistenteIa>();
+builder.Services.AddSingleton<MetisCurriculum.Api.Domain.Ia.AnalistaDudas>();
 // Las rutas públicas (rendir por link) tienen un límite por IP de origen (en Docker, la del contenedor web: alcanza para un curso completo).
 builder.Services.AddRateLimiter(o =>
 {
@@ -54,6 +59,8 @@ app.MapDashboard();
 app.MapMateriales();
 app.MapEvaluaciones();
 app.MapRendicion();
+app.MapIa();
+app.MapReportesIa();
 
 // MVP: el esquema se crea al iniciar (sin migraciones). Ver README para pasar a migraciones.
 using (var scope = app.Services.CreateScope())

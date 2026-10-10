@@ -31,6 +31,36 @@ type Vista = {
 };
 type Entrega = { respondidas: number; total: number; nota: number | null; puntaje: number | null; puntajeMaximo: number };
 
+function Avatar({ grande }: { grande?: boolean }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/metis.png" alt="" aria-hidden="true" className={`metis-img ${grande ? 'grande' : ''}`} />;
+}
+
+// Texto que aparece letra por letra (saludo de Metis al comenzar).
+function Maquina({ texto, onFin }: { texto: string; onFin?: () => void }) {
+  const [n, setN] = useState(0);
+  const reducido = useMemo(() => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches, []);
+  useEffect(() => {
+    if (reducido) {
+      setN(texto.length);
+      onFin?.();
+      return;
+    }
+    if (n >= texto.length) {
+      onFin?.();
+      return;
+    }
+    const t = setTimeout(() => setN((x) => x + 1), 22);
+    return () => clearTimeout(t);
+  }, [n, texto, reducido, onFin]);
+  return (
+    <span aria-label={texto}>
+      <span aria-hidden="true">{texto.slice(0, n)}</span>
+      {n < texto.length && <span className="cursor" aria-hidden="true" />}
+    </span>
+  );
+}
+
 const reloj = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
 export default function RendirPage() {
@@ -44,6 +74,8 @@ export default function RendirPage() {
   const [restante, setRestante] = useState(0);
   const [entrega, setEntrega] = useState<Entrega | null>(null);
   const [chatAbierto, setChatAbierto] = useState(false);
+  const [saludoListo, setSaludoListo] = useState(false);
+  const listoSaludo = useCallback(() => setSaludoListo(true), []);
   const guardarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entregando = useRef(false);
 
@@ -109,7 +141,7 @@ export default function RendirPage() {
     return (
       <div className="rendir-ingreso">
         <div className="ingreso-card centrado">
-          <div className="metis-avatar grande" aria-hidden="true">M</div>
+          <Avatar grande />
           <h1>¡Evaluación entregada!</h1>
           {entrega ? (
             <p>
@@ -131,31 +163,28 @@ export default function RendirPage() {
   }
 
   if (fase === 'intro') {
+    const saludo = v.evaluacion.asistenteActivo
+      ? `¡Hola${v.estudiante ? `, ${v.estudiante.nombre}` : ''}! Soy Metis, tu asistente de estudio. No estoy aquí para darte las respuestas, sino para ayudarte a pensar. Como un compañero que va a tu lado. Tu profesor podrá ver nuestras conversaciones.`
+      : `¡Hola${v.estudiante ? `, ${v.estudiante.nombre}` : ''}! En esta evaluación trabajas sin asistente. Lee con calma y confía en lo que sabes.`;
     return (
       <div className="rendir-ingreso">
-        <div className="ingreso-card">
+        <div className="ingreso-card centrado bienvenida">
           {v.esPrueba && <div className="badge-prueba">Vista previa del profesor</div>}
+          <Avatar grande />
+          <div className="bienvenida-burbuja">
+            <Maquina texto={saludo} onFin={listoSaludo} />
+          </div>
           <p className="muted small">
             {v.evaluacion.curso} · {v.evaluacion.asignatura}
           </p>
           <h1>{v.evaluacion.titulo}</h1>
-          {v.estudiante && <p>Hola, {v.estudiante.nombre}.</p>}
           {v.evaluacion.instrucciones && <p>{v.evaluacion.instrucciones}</p>}
           <ul className="ingreso-datos">
             <li>{v.preguntas.length} preguntas</li>
             <li>{v.evaluacion.duracionMinutos} minutos</li>
           </ul>
-          {v.evaluacion.asistenteActivo && (
-            <div className="metis-intro">
-              <div className="metis-avatar" aria-hidden="true">M</div>
-              <p>
-                <strong>Soy Metis.</strong> No te voy a dar las respuestas, pero puedo ayudarte a pensar. Si una pregunta te cuesta, escríbeme. Tu
-                profesor podrá ver nuestra conversación.
-              </p>
-            </div>
-          )}
-          <button className="btn btn-primary btn-block btn-lg" onClick={() => setFase('rindiendo')}>
-            Comenzar
+          <button className={`btn btn-green btn-block btn-lg ${saludoListo ? 'listo' : ''}`} onClick={() => setFase('rindiendo')}>
+            Empezar evaluación
           </button>
         </div>
       </div>
@@ -171,8 +200,16 @@ export default function RendirPage() {
             {v.estudiante ? `${v.estudiante.nombre} ${v.estudiante.apellido}` : 'Vista previa del profesor'}
           </span>
         </div>
-        <div className={`rendir-reloj ${restante < 120 ? 'urgente' : ''}`} aria-live="polite" title="Tiempo restante">
+        <div className={`rendir-reloj ${restante < 120 ? 'urgente' : ''}`} title="Tiempo restante">
           {reloj(restante)}
+        </div>
+        <div className="rendir-progreso" title={`${v.preguntas.length - sinResponder} de ${v.preguntas.length} respondidas`}>
+          <div className="barra-progreso" role="progressbar" aria-valuemin={0} aria-valuemax={v.preguntas.length} aria-valuenow={v.preguntas.length - sinResponder}>
+            <span style={{ width: `${(100 * (v.preguntas.length - sinResponder)) / v.preguntas.length}%` }} />
+          </div>
+          <span className="small">
+            {idx + 1}/{v.preguntas.length}
+          </span>
         </div>
         <button className="btn btn-primary" onClick={() => setFase('confirmar')}>
           Entregar
@@ -214,6 +251,7 @@ export default function RendirPage() {
           <ChatMetis
             clave={clave}
             p={p}
+            respondida={respondida(p)}
             mensajes={mensajes.filter((m) => m.preguntaId === p.id)}
             onMensajes={(nuevos) => setMensajes((m) => [...m, ...nuevos])}
             onCerrar={() => setChatAbierto(false)}
@@ -314,8 +352,49 @@ function PreguntaVista({ p, r, onChange }: { p: PreguntaEst; r?: Respuesta; onCh
   );
 }
 
-function ChatMetis({ clave, p, mensajes, onMensajes, onCerrar }: { clave: string; p: PreguntaEst; mensajes: Mensaje[]; onMensajes: (m: Mensaje[]) => void; onCerrar: () => void }) {
+// Dictado por voz con la API del navegador (Chrome, Edge y Safari). Si no existe, el botón no se muestra.
+type Reconocedor = { lang: string; interimResults: boolean; continuous: boolean; start: () => void; stop: () => void; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onend: (() => void) | null; onerror: (() => void) | null };
+function crearReconocedor(): Reconocedor | null {
+  if (typeof window === 'undefined') return null;
+  const w = window as unknown as { SpeechRecognition?: new () => Reconocedor; webkitSpeechRecognition?: new () => Reconocedor };
+  const Clase = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+  return Clase ? new Clase() : null;
+}
+
+function ChatMetis({ clave, p, respondida, mensajes, onMensajes, onCerrar }: { clave: string; p: PreguntaEst; respondida: boolean; mensajes: Mensaje[]; onMensajes: (m: Mensaje[]) => void; onCerrar: () => void }) {
   const [texto, setTexto] = useState('');
+  const [escuchando, setEscuchando] = useState(false);
+  const [vozDisponible, setVozDisponible] = useState(false);
+  const reconocedor = useRef<Reconocedor | null>(null);
+  const [ofrecidas, setOfrecidas] = useState<Set<number>>(new Set());
+
+  useEffect(() => setVozDisponible(crearReconocedor() !== null), []);
+
+  // Si el estudiante lleva un rato en la pregunta sin responder ni escribir, Metis le ofrece ayuda (una vez por pregunta).
+  useEffect(() => {
+    if (!p.asistente || respondida || mensajes.length > 0 || ofrecidas.has(p.id)) return;
+    const t = setTimeout(() => setOfrecidas((s) => new Set(s).add(p.id)), 30000);
+    return () => clearTimeout(t);
+  }, [p.id, p.asistente, respondida, mensajes.length, ofrecidas]);
+
+  const dictar = () => {
+    if (escuchando) {
+      reconocedor.current?.stop();
+      return;
+    }
+    const r = crearReconocedor();
+    if (!r) return;
+    r.lang = 'es-CL';
+    r.interimResults = true;
+    r.continuous = false;
+    const base = texto ? `${texto.trim()} ` : '';
+    r.onresult = (e) => setTexto(base + Array.from(e.results).map((x) => x[0].transcript).join(''));
+    r.onend = () => setEscuchando(false);
+    r.onerror = () => setEscuchando(false);
+    reconocedor.current = r;
+    setEscuchando(true);
+    r.start();
+  };
   const [pensando, setPensando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fin = useRef<HTMLDivElement>(null);
@@ -353,11 +432,12 @@ function ChatMetis({ clave, p, mensajes, onMensajes, onCerrar }: { clave: string
   return (
     <aside className="chat-metis" aria-label="Asistente Metis">
       <div className="chat-head">
-        <div className="metis-avatar" aria-hidden="true">M</div>
+        <Avatar />
         <div>
           <strong>Metis</strong>
           <div className="small muted">Te ayudo a pensar la pregunta {p.numero}</div>
         </div>
+        <span className="en-linea small">En línea</span>
         <button className="icon-btn chat-cerrar" onClick={onCerrar} aria-label="Cerrar ayuda">
           ✕
         </button>
@@ -369,6 +449,11 @@ function ChatMetis({ clave, p, mensajes, onMensajes, onCerrar }: { clave: string
           <>
             {mensajes.length === 0 && (
               <div className="burbuja metis">¿Te ayudo con esta pregunta? Cuéntame qué parte te cuesta. Recuerda: no te daré la respuesta, pero sí pistas para pensar.</div>
+            )}
+            {mensajes.length === 0 && ofrecidas.has(p.id) && !respondida && (
+              <div className="burbuja metis" role="status">
+                ¿Cómo vas con la pregunta {p.numero}? Si necesitas ayuda, escríbeme{vozDisponible ? ' o usa el micrófono' : ''}.
+              </div>
             )}
             {mensajes.map((m, i) => (
               <div key={i} className={`burbuja ${m.rol}`} style={{ whiteSpace: 'pre-line' }}>
@@ -399,7 +484,12 @@ function ChatMetis({ clave, p, mensajes, onMensajes, onCerrar }: { clave: string
           )}
           {error && <div className="alert small">{error}</div>}
           <form className="chat-input" onSubmit={submit}>
-            <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Escribe tu duda…" maxLength={600} aria-label="Mensaje para Metis" />
+            {vozDisponible && (
+              <button type="button" className={`btn-mic ${escuchando ? 'activo' : ''}`} onClick={dictar} aria-pressed={escuchando} aria-label={escuchando ? 'Detener dictado' : 'Dictar con la voz'} title={escuchando ? 'Detener' : 'Hablar'}>
+                🎤
+              </button>
+            )}
+            <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder={escuchando ? 'Te escucho…' : 'Escribe tu duda…'} maxLength={600} aria-label="Mensaje para Metis" />
             <button className="btn btn-primary" disabled={!texto.trim() || pensando}>
               Enviar
             </button>

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using MetisCurriculum.Api.Data;
 using MetisCurriculum.Api.Domain;
+using MetisCurriculum.Api.Domain.Ia;
 using Microsoft.EntityFrameworkCore;
 
 namespace MetisCurriculum.Api.Endpoints;
@@ -27,6 +28,7 @@ public static class MaterialesEndpoints
             m.Id, m.Titulo, Tipo = m.Tipo.ToString(), m.AsignaturaId, Asignatura = m.Asignatura.Nombre, AsignaturaColor = m.Asignatura.Color,
             m.NivelId, Nivel = m.Nivel.Nombre, m.CursoId, Curso = m.Curso is null ? null : Dtos.NombreCurso(m.Curso),
             m.Descripcion, Contenido = conContenido ? m.Contenido : null, m.Url, m.LecturaFacil, m.CreadoEn,
+            m.ArchivoNombre, m.ArchivoTipo, m.ArchivoTamano,
             Objetivos = m.Objetivos.OrderBy(o => o.Numero).Select(Dtos.Oa),
         };
 
@@ -77,11 +79,55 @@ public static class MaterialesEndpoints
         {
             var m = await Visibles(db, user).Include(x => x.Objetivos).SingleOrDefaultAsync(x => x.Id == id);
             if (m is null) return Results.NotFound();
-            if (await Validar(req, user, db) is { } error) return error;
+            if (await Validar(req, user, db, conArchivo: m.ArchivoNombre is not null) is { } error) return error;
             m.Titulo = req.Titulo.Trim();
             await Aplicar(m, req, db);
             await db.SaveChangesAsync();
             return Results.NoContent();
+        });
+
+        // Subir un archivo (PDF, Word, PowerPoint o texto) como material: sirve de fuente para generar evaluaciones con IA.
+        g.MapPost("/archivo", async (HttpRequest http, ClaimsPrincipal user, AppDb db) =>
+        {
+            if (!http.HasFormContentType) return Results.Problem("Envía el archivo como formulario", statusCode: 400);
+            var form = await http.ReadFormAsync();
+            var archivo = form.Files.GetFile("archivo");
+            if (archivo is null || archivo.Length == 0) return Results.Problem("Adjunta un archivo", statusCode: 400);
+            if (archivo.Length > LectorArchivos.TamanoMaximo) return Results.Problem("El archivo supera los 15 MB", statusCode: 400);
+            var ext = Path.GetExtension(archivo.FileName);
+            if (!LectorArchivos.Tipos.TryGetValue(ext, out var tipo))
+                return Results.Problem("Formato no soportado. Usa PDF, Word (.docx), PowerPoint (.pptx) o texto (.txt, .md, .csv)", statusCode: 400);
+            if (!int.TryParse(form["asignaturaId"], out var asignaturaId) || !int.TryParse(form["nivelId"], out var nivelId)
+                || !await db.Asignaturas.AnyAsync(a => a.Id == asignaturaId) || !await db.Niveles.AnyAsync(n => n.Id == nivelId))
+                return Results.Problem("Asignatura o nivel inválido", statusCode: 400);
+            int? cursoId = int.TryParse(form["cursoId"], out var c) ? c : null;
+            if (cursoId is not null && await db.CursoPropio(cursoId.Value, user) is null) return Results.Problem("Curso inválido", statusCode: 400);
+
+            using var ms = new MemoryStream();
+            await archivo.CopyToAsync(ms);
+            var datos = ms.ToArray();
+            string? texto;
+            try { texto = LectorArchivos.ExtraerTexto(archivo.FileName, datos); }
+            catch (Exception) { return Results.Problem("No pudimos leer el archivo. Revisa que no esté dañado o protegido.", statusCode: 400); }
+            if (!LectorArchivos.EsPdf(tipo) && string.IsNullOrWhiteSpace(texto)) return Results.Problem("El archivo no tiene texto que podamos leer", statusCode: 400);
+
+            var titulo = form["titulo"].ToString() is { Length: > 0 } t ? t.Trim() : Path.GetFileNameWithoutExtension(archivo.FileName);
+            var m = new Material
+            {
+                Titulo = titulo, Tipo = TipoMaterial.Documento, AsignaturaId = asignaturaId, NivelId = nivelId, CursoId = cursoId,
+                Descripcion = $"Archivo subido: {archivo.FileName}", Contenido = texto,
+                ArchivoNombre = archivo.FileName, ArchivoTipo = tipo, ArchivoTamano = archivo.Length,
+                Archivo = new MaterialArchivo { Datos = datos },
+            };
+            db.Materiales.Add(m);
+            await db.SaveChangesAsync();
+            return Results.Created($"/api/materiales/{m.Id}", new { m.Id, m.Titulo, m.ArchivoNombre, m.ArchivoTipo, m.ArchivoTamano });
+        }).DisableAntiforgery();
+
+        g.MapGet("/{id:int}/archivo", async (int id, ClaimsPrincipal user, AppDb db) =>
+        {
+            var m = await Visibles(db, user).Include(x => x.Archivo).SingleOrDefaultAsync(x => x.Id == id);
+            return m?.Archivo is null ? Results.NotFound() : Results.File(m.Archivo.Datos, m.ArchivoTipo ?? "application/octet-stream", m.ArchivoNombre);
         });
 
         g.MapDelete("/{id:int}", async (int id, ClaimsPrincipal user, AppDb db) =>
@@ -91,10 +137,10 @@ public static class MaterialesEndpoints
         });
     }
 
-    private static async Task<IResult?> Validar(MaterialRequest req, ClaimsPrincipal user, AppDb db)
+    private static async Task<IResult?> Validar(MaterialRequest req, ClaimsPrincipal user, AppDb db, bool conArchivo = false)
     {
         if (string.IsNullOrWhiteSpace(req.Titulo)) return Results.Problem("El título es obligatorio", statusCode: 400);
-        if (string.IsNullOrWhiteSpace(req.Contenido) && string.IsNullOrWhiteSpace(req.Url))
+        if (!conArchivo && string.IsNullOrWhiteSpace(req.Contenido) && string.IsNullOrWhiteSpace(req.Url))
             return Results.Problem("Agrega el contenido del material o un enlace", statusCode: 400);
         if (!string.IsNullOrWhiteSpace(req.Url) && !(Uri.TryCreate(req.Url.Trim(), UriKind.Absolute, out var u) && u.Scheme is "http" or "https"))
             return Results.Problem("El enlace debe comenzar con http:// o https://", statusCode: 400);

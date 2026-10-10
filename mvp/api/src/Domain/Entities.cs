@@ -111,7 +111,7 @@ public class Planificacion
     public List<ObjetivoAprendizaje> Objetivos { get; set; } = [];
 }
 
-public enum TipoMaterial { Guia, Presentacion, Lectura, Video, Ficha }
+public enum TipoMaterial { Guia, Presentacion, Lectura, Video, Ficha, Documento }
 
 public class Material
 {
@@ -128,8 +128,19 @@ public class Material
     public string? Contenido { get; set; }          // texto del material (vista de lectura)
     public string? Url { get; set; }
     public bool LecturaFacil { get; set; }          // adaptado: lectura fácil / apoyos visuales
+    // Archivo subido por el profesor (PDF, Word, PowerPoint o texto): fuente para generar evaluaciones con IA.
+    public string? ArchivoNombre { get; set; }
+    public string? ArchivoTipo { get; set; }
+    public long? ArchivoTamano { get; set; }
+    public MaterialArchivo? Archivo { get; set; }   // bytes en tabla aparte para no cargarlos en los listados
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
     public List<ObjetivoAprendizaje> Objetivos { get; set; } = [];
+}
+
+public class MaterialArchivo
+{
+    public int MaterialId { get; set; }
+    public required byte[] Datos { get; set; }
 }
 
 public enum TipoEvaluacion { Formativa, Sumativa }
@@ -154,6 +165,8 @@ public class Evaluacion
     public bool AsistenteActivo { get; set; } = true;
     public int NivelAyuda { get; set; } = 2;         // 1 preguntas guía · 2 pistas · 3 ejemplos parciales
     public string? InstruccionesAsistente { get; set; }
+    public string? Dificultad { get; set; }          // Básico · Intermedio · Avanzado
+    public bool GeneradaConIa { get; set; }
     public DateTime CreadaEn { get; set; } = DateTime.UtcNow;
     public DateTime? PublicadaEn { get; set; }
     public List<Pregunta> Preguntas { get; set; } = [];
@@ -173,6 +186,8 @@ public class Pregunta
     public int? ObjetivoId { get; set; }
     public ObjetivoAprendizaje? Objetivo { get; set; }
     public bool AsistenteHabilitado { get; set; } = true;
+    public string? Justificacion { get; set; }       // por qué la respuesta es correcta (solo profesor)
+    public string? Fuente { get; set; }              // cita del material o del OA de origen
     public string? PistaDocente { get; set; }        // la usa Metis en los niveles 2 y 3
 }
 
@@ -212,5 +227,6 @@ public class MensajeAsistente
     public required string Rol { get; set; }         // estudiante | metis
     public required string Texto { get; set; }
     public int? NivelAyuda { get; set; }
+    public bool PorIa { get; set; }                  // respondido por el modelo de lenguaje (si no, por las reglas)
     public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
 }

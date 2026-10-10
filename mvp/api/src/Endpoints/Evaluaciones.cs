@@ -10,7 +10,7 @@ public record NuevaEvaluacionRequest(string Titulo, int AsignaturaId, TipoEvalua
 
 public record PreguntaRequest(
     TipoPregunta Tipo, string Enunciado, List<string>? Opciones, List<int>? Correctas, decimal Puntaje,
-    int? ObjetivoId, bool AsistenteHabilitado, string? PistaDocente);
+    int? ObjetivoId, bool AsistenteHabilitado, string? PistaDocente, string? Justificacion = null, string? Fuente = null);
 
 public record EvaluacionRequest(
     string Titulo, string? Instrucciones, int AsignaturaId, TipoEvaluacion Tipo, int DuracionMinutos, int Exigencia,
@@ -36,6 +36,7 @@ public static class EvaluacionesEndpoints
     {
         p.Id, p.Orden, Tipo = p.Tipo.ToString(), p.Enunciado, p.Opciones, p.Correctas, p.Puntaje,
         p.ObjetivoId, Oa = p.Objetivo is null ? null : Dtos.Oa(p.Objetivo), p.AsistenteHabilitado, p.PistaDocente,
+        p.Justificacion, p.Fuente,
     };
 
     public static void MapEvaluaciones(this IEndpointRouteBuilder app)
@@ -99,7 +100,7 @@ public static class EvaluacionesEndpoints
                 e.Id, e.CursoId, Curso = Dtos.NombreCurso(e.Curso), e.Curso.NivelId, e.Titulo, e.Instrucciones,
                 e.AsignaturaId, Asignatura = e.Asignatura.Nombre, Tipo = e.Tipo.ToString(), Estado = e.Estado.ToString(),
                 e.DuracionMinutos, e.Exigencia, e.Token, e.AsistenteActivo, e.NivelAyuda, e.InstruccionesAsistente,
-                e.CreadaEn, e.PublicadaEn, Entregas = entregas, Bloqueada = entregas > 0,
+                e.Dificultad, e.GeneradaConIa, e.CreadaEn, e.PublicadaEn, Entregas = entregas, Bloqueada = entregas > 0,
                 Preguntas = e.Preguntas.OrderBy(p => p.Orden).Select(PreguntaDto),
             });
         });
@@ -176,7 +177,9 @@ public static class EvaluacionesEndpoints
                 {
                     Orden = p.Orden, Tipo = p.Tipo, Enunciado = p.Enunciado, Opciones = [.. p.Opciones], Correctas = [.. p.Correctas],
                     Puntaje = p.Puntaje, ObjetivoId = p.ObjetivoId, AsistenteHabilitado = p.AsistenteHabilitado, PistaDocente = p.PistaDocente,
+                    Justificacion = p.Justificacion, Fuente = p.Fuente,
                 }).ToList(),
+                Dificultad = e.Dificultad, GeneradaConIa = e.GeneradaConIa,
             };
             db.Evaluaciones.Add(copia);
             await db.SaveChangesAsync();
@@ -283,7 +286,7 @@ public static class EvaluacionesEndpoints
                         Pregunta = PreguntaDto(p),
                         Respuesta = r is null ? null : new { r.Seleccion, r.Texto, r.Puntaje, r.Comentario },
                         Conversacion = i.Mensajes.Where(m => m.PreguntaId == p.Id).OrderBy(m => m.CreadoEn).ThenBy(m => m.Id)
-                            .Select(m => new { m.Rol, m.Texto, m.NivelAyuda, m.CreadoEn }),
+                            .Select(m => new { m.Rol, m.Texto, m.NivelAyuda, m.PorIa, m.CreadoEn }),
                     };
                 }),
             });
@@ -328,7 +331,7 @@ public static class EvaluacionesEndpoints
         return Results.NoContent();
     }
 
-    private static (Pregunta? Pregunta, IResult? Error) ValidarPregunta(PreguntaRequest r, int orden, List<int> oasCurso)
+    internal static (Pregunta? Pregunta, IResult? Error) ValidarPregunta(PreguntaRequest r, int orden, List<int> oasCurso)
     {
         IResult Error(string msg) => Results.Problem($"Pregunta {orden}: {msg}", statusCode: 400);
         if (string.IsNullOrWhiteSpace(r.Enunciado)) return (null, Error("escribe el enunciado"));
@@ -354,6 +357,8 @@ public static class EvaluacionesEndpoints
             Orden = orden, Tipo = r.Tipo, Enunciado = r.Enunciado.Trim(), Opciones = opciones, Correctas = correctas,
             Puntaje = r.Puntaje, ObjetivoId = r.ObjetivoId, AsistenteHabilitado = r.AsistenteHabilitado,
             PistaDocente = string.IsNullOrWhiteSpace(r.PistaDocente) ? null : r.PistaDocente.Trim(),
+            Justificacion = string.IsNullOrWhiteSpace(r.Justificacion) ? null : r.Justificacion.Trim(),
+            Fuente = string.IsNullOrWhiteSpace(r.Fuente) ? null : r.Fuente.Trim(),
         }, null);
     }
 }

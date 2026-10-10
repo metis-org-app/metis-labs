@@ -1,5 +1,6 @@
 using MetisCurriculum.Api.Data;
 using MetisCurriculum.Api.Domain;
+using MetisCurriculum.Api.Domain.Ia;
 using Microsoft.EntityFrameworkCore;
 
 namespace MetisCurriculum.Api.Endpoints;
@@ -126,7 +127,7 @@ public static class Rendicion
         });
 
         // Conversación con Metis sobre una pregunta.
-        g.MapPost("/intentos/{clave}/mensajes", async (string clave, MensajeRequest req, AppDb db) =>
+        g.MapPost("/intentos/{clave}/mensajes", async (string clave, MensajeRequest req, AppDb db, AsistenteIa asistente, CancellationToken ct) =>
         {
             var i = await CargarIntento(db, clave);
             if (i is null) return Results.NotFound();
@@ -139,14 +140,17 @@ public static class Rendicion
             if (p is null) return Results.Problem("Pregunta inválida", statusCode: 400);
 
             var ayudasPrevias = i.Mensajes.Count(m => m.PreguntaId == p.Id && m.Rol == "metis" && m.NivelAyuda != null);
-            var respuesta = AsistenteMetis.Responder(new AsistenteMetis.Contexto(
+            var llegada = DateTime.UtcNow;
+            var contexto = new AsistenteMetis.Contexto(
                 p, p.Objetivo, p.Objetivo is null ? null : Dtos.CodigoOa(p.Objetivo), e.NivelAyuda, e.AsistenteActivo,
                 e.InstruccionesAsistente, ayudasPrevias, i.Estudiante?.Diagnostico == "TEA",
-                i.Estudiante?.Nombre ?? "profe"), texto);
+                i.Estudiante?.Nombre ?? "profe");
+            var historial = i.Mensajes.Where(m => m.PreguntaId == p.Id).OrderBy(m => m.CreadoEn).ThenBy(m => m.Id).ToList();
+            var respuesta = await asistente.ResponderAsync(contexto, historial, texto, i.Mensajes.Count(m => m.Rol == "estudiante"), ct);
 
-            var ahora = DateTime.UtcNow;
-            db.Mensajes.Add(new MensajeAsistente { IntentoId = i.Id, PreguntaId = p.Id, Rol = "estudiante", Texto = texto, CreadoEn = ahora });
-            db.Mensajes.Add(new MensajeAsistente { IntentoId = i.Id, PreguntaId = p.Id, Rol = "metis", Texto = respuesta.Texto, NivelAyuda = respuesta.Nivel, CreadoEn = ahora.AddMilliseconds(1) });
+            // La hora del mensaje del estudiante es la de llegada, no la de la respuesta (que puede tardar unos segundos con IA).
+            db.Mensajes.Add(new MensajeAsistente { IntentoId = i.Id, PreguntaId = p.Id, Rol = "estudiante", Texto = texto, CreadoEn = llegada });
+            db.Mensajes.Add(new MensajeAsistente { IntentoId = i.Id, PreguntaId = p.Id, Rol = "metis", Texto = respuesta.Texto, NivelAyuda = respuesta.Nivel, PorIa = respuesta.PorIa, CreadoEn = DateTime.UtcNow });
             await db.SaveChangesAsync();
             return Results.Ok(new { respuesta.Texto, respuesta.Nivel });
         });

@@ -10,7 +10,6 @@ import { Barra, Empty, ErrorBox, EstadoEval, Modal, OaTag } from '../ui';
 
 export function EvaluacionesCurso({ curso }: { curso: CursoDetalle }) {
   const [lista, setLista] = useState<EvaluacionResumen[] | null>(null);
-  const [nueva, setNueva] = useState(false);
 
   useEffect(() => {
     api<EvaluacionResumen[]>(`/cursos/${curso.id}/evaluaciones`).then(setLista);
@@ -23,11 +22,11 @@ export function EvaluacionesCurso({ curso }: { curso: CursoDetalle }) {
           Evaluaciones del curso con el asistente <strong>Metis</strong> integrado: guía a cada estudiante mientras responde, sin darle la respuesta, y
           tú ves cada conversación.
         </p>
-        <button className="btn btn-primary" onClick={() => setNueva(true)}>
+        <Link className="btn btn-primary" href={`/cursos/${curso.id}/evaluaciones/nueva`}>
           + Nueva evaluación
-        </button>
+        </Link>
       </div>
-      {lista?.length === 0 && <Empty>Aún no hay evaluaciones. Crea la primera a partir de los OA del curso.</Empty>}
+      {lista?.length === 0 && <Empty>Aún no hay evaluaciones. Crea la primera con IA a partir de los OA del curso, de tus apuntes o de un archivo.</Empty>}
       <div className="eval-grid">
         {lista?.map((e) => (
           <Link key={e.id} href={`/cursos/${curso.id}/evaluaciones/${e.id}${e.estado === 'Borrador' ? '' : '?vista=resultados'}`} className="eval-card">
@@ -62,12 +61,11 @@ export function EvaluacionesCurso({ curso }: { curso: CursoDetalle }) {
           </Link>
         ))}
       </div>
-      {nueva && <NuevaEvaluacion curso={curso} onClose={() => setNueva(false)} />}
     </>
   );
 }
 
-function NuevaEvaluacion({ curso, onClose }: { curso: CursoDetalle; onClose: () => void }) {
+export function NuevaEvaluacion({ curso, onClose }: { curso: CursoDetalle; onClose: () => void }) {
   const router = useRouter();
   const [asignaturas, setAsignaturas] = useState<{ id: number; nombre: string }[]>([]);
   const [titulo, setTitulo] = useState('');
