@@ -134,7 +134,7 @@ export type Planificacion = {
   objetivos: Oa[];
 };
 
-export type TipoMaterial = 'Guia' | 'Presentacion' | 'Lectura' | 'Video' | 'Ficha';
+export type TipoMaterial = 'Guia' | 'Presentacion' | 'Lectura' | 'Video' | 'Ficha' | 'Documento';
 
 export type Material = {
   id: number;
@@ -153,6 +153,9 @@ export type Material = {
   lecturaFacil: boolean;
   creadoEn: string;
   objetivos: Oa[];
+  archivoNombre: string | null;
+  archivoTipo: string | null;
+  archivoTamano: number | null;
 };
 
 export type TipoEvaluacion = 'Formativa' | 'Sumativa';
@@ -194,6 +197,8 @@ export type Pregunta = {
   oa?: Oa | null;
   asistenteHabilitado: boolean;
   pistaDocente: string | null;
+  justificacion?: string | null;
+  fuente?: string | null;
 };
 
 export type Evaluacion = {
@@ -213,6 +218,8 @@ export type Evaluacion = {
   asistenteActivo: boolean;
   nivelAyuda: number;
   instruccionesAsistente: string | null;
+  dificultad: string | null;
+  generadaConIa: boolean;
   creadaEn: string;
   publicadaEn: string | null;
   entregas: number;
@@ -240,7 +247,7 @@ export type Resultados = {
   logroOa: { oa: Oa; porcentaje: number; nivel: string }[];
 };
 
-export type MensajeMetis = { preguntaId?: number | null; rol: 'estudiante' | 'metis'; texto: string; nivelAyuda: number | null; creadoEn?: string };
+export type MensajeMetis = { preguntaId?: number | null; rol: 'estudiante' | 'metis'; texto: string; nivelAyuda: number | null; porIa?: boolean; creadoEn?: string };
 
 export type IntentoDetalle = {
   id: number;
@@ -269,4 +276,32 @@ export type Inicio = {
   porRevisar: { id: number; titulo: string; cursoId: number; curso: string; total: number }[];
   abiertas: { id: number; titulo: string; cursoId: number; curso: string; entregas: number; estudiantes: number }[];
   borradores: { id: number; titulo: string; cursoId: number; curso: string }[];
+};
+
+export type EsquemaGenerado = {
+  titulo: string;
+  instrucciones: string;
+  porIa: boolean;
+  aviso: string | null;
+  dificultad: string;
+  preguntas: Pregunta[];
+};
+
+export type Conversacion = {
+  intentoId: number;
+  estudianteId: number | null;
+  estudiante: string;
+  diagnostico: string | null;
+  preguntaId: number;
+  preguntaOrden: number;
+  enunciado: string;
+  ayudas: number;
+  nivelMaximo: number | null;
+  mensajes: { rol: 'estudiante' | 'metis'; texto: string; nivelAyuda: number | null; porIa: boolean; creadoEn: string }[];
+};
+
+export type ResumenDudas = {
+  resumen: string;
+  porIa: boolean;
+  dudas: { pregunta: number | null; duda: string; estudiantes: number; sugerencia: string }[];
 };

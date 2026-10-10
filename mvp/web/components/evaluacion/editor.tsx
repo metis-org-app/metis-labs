@@ -115,9 +115,8 @@ export function EditorEvaluacion({ ev, onSaved }: { ev: Evaluacion; onSaved: () 
 
       <section className="card metis-config">
         <div className="metis-head">
-          <div className="metis-avatar" aria-hidden="true">
-            M
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/metis.png" alt="" aria-hidden="true" className="metis-img" />
           <div>
             <h2>Asistente Metis</h2>
             <p className="muted small">Acompaña al estudiante dentro de la evaluación. Nunca entrega la respuesta y cada conversación queda registrada para ti.</p>
@@ -208,7 +207,7 @@ export function EditorEvaluacion({ ev, onSaved }: { ev: Evaluacion; onSaved: () 
   );
 }
 
-function EditorPregunta(props: {
+export function EditorPregunta(props: {
   n: number;
   p: Pregunta;
   bloqueada: boolean;
@@ -324,6 +323,21 @@ function EditorPregunta(props: {
         </div>
       )}
       {p.tipo === 'Abierta' && <p className="small muted">La respuesta abierta la corriges tú en Resultados. Puedes asignar puntaje parcial y dejar un comentario.</p>}
+
+      <details className="pregunta-pauta">
+        <summary className="small">
+          Pauta y fuente <span className="muted">(solo tú las ves)</span>
+          {p.fuente && <span className="fuente-chip">📄 {p.fuente}</span>}
+        </summary>
+        <label className="small">
+          Justificación de la respuesta o pauta de corrección
+          <textarea rows={2} value={p.justificacion ?? ''} onChange={(e) => onChange({ justificacion: e.target.value || null })} />
+        </label>
+        <label className="small">
+          Fuente (material, página u OA)
+          <input value={p.fuente ?? ''} onChange={(e) => onChange({ fuente: e.target.value || null })} />
+        </label>
+      </details>
 
       <div className="pregunta-metis">
         <label className="check-row">

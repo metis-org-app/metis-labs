@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { fechaHora, nota, num, TIPO_PREGUNTA } from '@/lib/format';
-import type { IntentoDetalle, Resultados } from '@/lib/types';
+import type { Conversacion, IntentoDetalle, ResumenDudas, Resultados } from '@/lib/types';
 import { DxBadge, Empty, ErrorBox, LogroBadge, Modal, NotaBadge, OaTag, Stat } from '../ui';
 
 export function ResultadosEvaluacion({ evaluacionId }: { evaluacionId: number }) {
@@ -130,6 +130,8 @@ export function ResultadosEvaluacion({ evaluacionId }: { evaluacionId: number })
         <p className="muted small">Muchas ayudas en una pregunta pueden indicar que el enunciado no es claro o que el OA necesita refuerzo.</p>
       </section>
 
+      <DudasYConversaciones evaluacionId={evaluacionId} />
+
       {intento && (
         <IntentoModal
           id={intento}
@@ -247,6 +249,7 @@ function IntentoModal({ id, onClose, onSaved }: { id: number; onClose: () => voi
                   {conversacion.map((m, i) => (
                     <div key={i} className={`burbuja ${m.rol}`}>
                       {m.rol === 'metis' && m.nivelAyuda && <span className="nivel-tag">Ayuda nivel {m.nivelAyuda}</span>}
+                      {m.rol === 'metis' && m.porIa && <span className="nivel-tag ia">IA</span>}
                       <span style={{ whiteSpace: 'pre-line' }}>{m.texto}</span>
                     </div>
                   ))}
@@ -268,5 +271,116 @@ function IntentoModal({ id, onClose, onSaved }: { id: number; onClose: () => voi
         </>
       )}
     </Modal>
+  );
+}
+
+// Lo que los estudiantes le preguntaron a Metis: dudas agrupadas por la IA y cada conversación, filtrable.
+function DudasYConversaciones({ evaluacionId }: { evaluacionId: number }) {
+  const [convs, setConvs] = useState<Conversacion[] | null>(null);
+  const [dudas, setDudas] = useState<ResumenDudas | null>(null);
+  const [analizando, setAnalizando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState({ pregunta: '', estudiante: '' });
+
+  useEffect(() => {
+    api<Conversacion[]>(`/evaluaciones/${evaluacionId}/conversaciones`).then(setConvs).catch((e) => setError(e.message));
+  }, [evaluacionId]);
+
+  const analizar = async () => {
+    setError(null);
+    setAnalizando(true);
+    try {
+      setDudas(await api<ResumenDudas>(`/evaluaciones/${evaluacionId}/dudas`, { method: 'POST' }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setAnalizando(false);
+    }
+  };
+
+  if (!convs) return null;
+  const preguntas = [...new Map(convs.map((c) => [c.preguntaId, c])).values()].sort((a, b) => a.preguntaOrden - b.preguntaOrden);
+  const estudiantes = [...new Set(convs.map((c) => c.estudiante))].sort();
+  const visibles = convs.filter((c) => (!filtro.pregunta || String(c.preguntaId) === filtro.pregunta) && (!filtro.estudiante || c.estudiante === filtro.estudiante));
+
+  return (
+    <>
+      <section className="card dudas">
+        <div className="section-head">
+          <div>
+            <h2>Dudas frecuentes</h2>
+            <p className="muted small">Metis agrupa lo que preguntaron los estudiantes para que sepas qué reforzar en clases. No incluye nombres.</p>
+          </div>
+          <button className="btn btn-primary" onClick={analizar} disabled={analizando || convs.length === 0}>
+            {analizando ? 'Analizando…' : dudas ? '↻ Analizar de nuevo' : '✦ Analizar dudas'}
+          </button>
+        </div>
+        <ErrorBox error={error} />
+        {convs.length === 0 && <Empty>Todavía nadie le ha preguntado a Metis en esta evaluación.</Empty>}
+        {dudas && (
+          <>
+            <p>{dudas.resumen}</p>
+            <ul className="lista-dudas">
+              {dudas.dudas.map((d, i) => (
+                <li key={i}>
+                  <div className="duda-head">
+                    <strong>{d.duda}</strong>
+                    <span className="chip">{d.pregunta ? `Pregunta ${d.pregunta}` : 'Transversal'}</span>
+                    <span className="muted small">
+                      {d.estudiantes} {d.estudiantes === 1 ? 'estudiante' : 'estudiantes'}
+                    </span>
+                  </div>
+                  <p className="small">💡 {d.sugerencia}</p>
+                </li>
+              ))}
+            </ul>
+            {!dudas.porIa && <p className="muted small">Sin IA configurada se muestran las preguntas con más consultas.</p>}
+          </>
+        )}
+      </section>
+
+      {convs.length > 0 && (
+        <section className="card">
+          <div className="section-head">
+            <h2>
+              Conversaciones con Metis <span className="muted small">{visibles.length}</span>
+            </h2>
+            <div className="toolbar compacta">
+              <select value={filtro.pregunta} onChange={(e) => setFiltro({ ...filtro, pregunta: e.target.value })} aria-label="Filtrar por pregunta">
+                <option value="">Todas las preguntas</option>
+                {preguntas.map((p) => (
+                  <option key={p.preguntaId} value={p.preguntaId}>
+                    Pregunta {p.preguntaOrden}
+                  </option>
+                ))}
+              </select>
+              <select value={filtro.estudiante} onChange={(e) => setFiltro({ ...filtro, estudiante: e.target.value })} aria-label="Filtrar por estudiante">
+                <option value="">Todos los estudiantes</option>
+                {estudiantes.map((e) => (
+                  <option key={e}>{e}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {visibles.map((c) => (
+            <details key={`${c.intentoId}-${c.preguntaId}`} className="conversacion">
+              <summary>
+                <strong>{c.estudiante}</strong> {c.diagnostico && <span className="chip">{c.diagnostico}</span>} · Pregunta {c.preguntaOrden} ·{' '}
+                {c.mensajes.filter((m) => m.rol === 'estudiante').length} {c.mensajes.filter((m) => m.rol === 'estudiante').length === 1 ? 'mensaje' : 'mensajes'} · {c.ayudas} {c.ayudas === 1 ? 'ayuda' : 'ayudas'}
+                {c.nivelMaximo ? ` (hasta nivel ${c.nivelMaximo})` : ''}
+              </summary>
+              <p className="muted small">{c.enunciado}</p>
+              {c.mensajes.map((m, i) => (
+                <div key={i} className={`burbuja ${m.rol}`}>
+                  {m.rol === 'metis' && m.nivelAyuda && <span className="nivel-tag">Ayuda nivel {m.nivelAyuda}</span>}
+                  {m.rol === 'metis' && m.porIa && <span className="nivel-tag ia">IA</span>}
+                  <span style={{ whiteSpace: 'pre-line' }}>{m.texto}</span>
+                </div>
+              ))}
+            </details>
+          ))}
+        </section>
+      )}
+    </>
   );
 }

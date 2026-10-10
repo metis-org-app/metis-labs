@@ -26,6 +26,7 @@ export const TIPO_MATERIAL: Record<TipoMaterial, string> = {
   Lectura: 'Lectura',
   Video: 'Video',
   Ficha: 'Ficha',
+  Documento: 'Documento',
 };
 
 export const NIVEL_AYUDA: Record<number, string> = {

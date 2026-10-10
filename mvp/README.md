@@ -1,6 +1,6 @@
 # Metis · MVP
 
-Plataforma para profesores en Chile. Organiza el currículum de cada curso en **Objetivos de Aprendizaje (OA)**, acompaña a los estudiantes con necesidades educativas (PIE, TEA y otras) y permite aplicar **evaluaciones con el asistente Metis integrado**. Metis guía al estudiante mientras responde sin darle la respuesta, y el profesor ve cada conversación.
+Plataforma para profesores en Chile. Organiza el currículum de cada curso en **Objetivos de Aprendizaje (OA)**, acompaña a los estudiantes con necesidades educativas (PIE, TEA y otras) y permite crear con IA y aplicar **evaluaciones con el asistente Metis integrado** (el núcleo de Evalia). Metis guía al estudiante mientras responde sin darle la respuesta, y el profesor ve cada conversación.
 
 ## Levantarlo en local
 
@@ -20,6 +20,17 @@ docker compose up --build
 
 **Usuario demo:** `profe@metis.cl` / `metis123`. Para cambiarlo, copia `.env.example` a `.env` antes del primer arranque.
 
+### Activar la IA (Evalia + Metis con Claude)
+
+Copia `.env.example` a `.env` y completa `ANTHROPIC_API_KEY` (se crea en [console.anthropic.com](https://console.anthropic.com)). Luego `docker compose up --build`. En la app, *Nueva evaluación → Generar con IA* deja de mostrar el aviso de "IA no configurada".
+
+Sin key la app funciona igual:
+- *Generar con IA* arma un esquema de ejemplo desde los OA para que lo edites.
+- Metis responde con reglas pedagógicas.
+- Las dudas frecuentes se agrupan por pregunta.
+
+El modelo por defecto es `claude-opus-5-5` (se cambia con `IA_MODELO`). Si un filtro de seguridad declina una solicitud, la API la reintenta con otro modelo.
+
 Para volver a los datos de ejemplo (borra todo): `docker compose down -v && docker compose up --build`.
 
 ## Recorrido sugerido para la demo
@@ -37,12 +48,24 @@ Para volver a los datos de ejemplo (borra todo): `docker compose down -v && dock
    - Logro por OA (L, ML, PL).
    - Análisis por pregunta con las ayudas que entregó Metis.
    - En *Ver respuestas* o *Revisar*: corrección de respuestas abiertas y la conversación completa del estudiante con Metis.
-4. **Nueva evaluación:**
-   - Creas las preguntas (selección única, múltiple, verdadero o falso, abierta), cada una vinculada a un OA del curso.
-   - Configuras a Metis: nivel máximo de ayuda, si puede ayudar en cada pregunta y una pista por pregunta.
-   - *Vista previa* abre la evaluación como la verá un estudiante.
-   - *Publicar* entrega el link para el curso.
-5. **Como estudiante:** abre el link (o http://localhost:3000/rendir/seres-vivos-1a), entra con un RUT de la nómina, responde y conversa con Metis. En la ficha de cada estudiante de demo aparece su RUT.
+4. **Nueva evaluación (Evalia):** eliges cómo empezar.
+   - **Generar con IA:** una consigna breve más los OA del curso.
+   - **Pegar contenido:** apuntes o un temario.
+   - **Importar archivo:** PDF, Word o PowerPoint, que queda guardado en Materiales.
+   - **Desde cero:** el editor manual.
+
+   Con IA el flujo es *Idea → Procesando → Esquema → Crear*:
+   - En el esquema editas cada pregunta: tipo, alternativas, respuesta correcta y OA.
+   - También editas la pista para Metis, la **pauta o justificación** y la **fuente** (la parte del material o el OA de donde sale la pregunta).
+   - Después configuras a Metis (nivel máximo de ayuda, ayuda por pregunta, indicaciones) y usas *Vista previa*.
+5. **Publicar y compartir:** link, **código QR** para proyectar en la sala, WhatsApp o correo.
+6. **Como estudiante:** abre el link (o http://localhost:3000/rendir/seres-vivos-1a) y entra con un RUT de la nómina. En la ficha de cada estudiante de demo aparece su RUT.
+   - Metis lo saluda (con efecto de escritura) y lo acompaña en un chat lateral con avatar. Se le puede **dictar con la voz** y ofrece ayuda si el estudiante lleva un rato sin avanzar.
+   - Hay temporizador, barra de progreso y navegación por pregunta.
+7. **Resultados → Dudas frecuentes y Conversaciones:**
+   - La IA agrupa lo que preguntaron los estudiantes y sugiere qué reforzar.
+   - Cada conversación se puede filtrar por pregunta o estudiante.
+   - Los mensajes generados con IA llevan la marca "IA".
 
 ## Lógica educativa
 
@@ -60,15 +83,20 @@ Para volver a los datos de ejemplo (borra todo): `docker compose down -v && dock
   - Al publicar, los OA evaluados pasan a "En progreso".
   - Si ya hay entregas, las preguntas no se pueden modificar: hay que duplicar la evaluación.
 - **Logro por OA:** L (≥80%), ML (60–79%) y PL (<60%), por evaluación, por curso y por estudiante.
-- **Asistente Metis** (`api/src/Domain/AsistenteMetis.cs`):
+- **Asistente Metis** (`api/src/Domain/Ia/AsistenteIa.cs`, con respaldo por reglas en `api/src/Domain/AsistenteMetis.cs`):
   - La ayuda es gradual: cada vez que el estudiante pide ayuda en la misma pregunta sube un nivel, hasta el máximo que definió el profesor.
     - Nivel 1: preguntas guía.
     - Nivel 2: la pista del profesor o el OA que se evalúa.
-    - Nivel 3: descarta una alternativa incorrecta o propone cómo empezar.
-  - Nunca revela la respuesta, y la vista del estudiante no recibe las respuestas correctas.
+    - Nivel 3: un ejemplo parcial, o descarta una alternativa incorrecta.
+  - Con IA, Claude recibe la pregunta, el OA, la pista y las indicaciones del profesor, y el historial de esa pregunta. La respuesta correcta va marcada como secreta.
+  - **Si Claude no está disponible o su respuesta parece revelar la solución, responde la versión con reglas.** La vista del estudiante nunca recibe las respuestas correctas.
   - Con estudiantes TEA responde en pasos numerados y lenguaje literal.
-  - Cada mensaje queda guardado, con el nivel de ayuda usado.
-  - **Esta versión usa reglas, no un modelo de lenguaje.** El contrato (`POST /api/publico/intentos/{clave}/mensajes`) está pensado para reemplazarla por el servicio `metis-agents` de la arquitectura sin cambiar la interfaz.
+  - Cada mensaje queda guardado con el nivel de ayuda y si lo respondió la IA.
+- **Evalia: generación de evaluaciones** (`api/src/Domain/Ia/GeneradorEvaluaciones.cs`):
+  - Usa los OA del curso que elijas, la consigna y los materiales. Los PDF se envían completos a Claude; Word, PowerPoint y texto se convierten a texto.
+  - Devuelve un esquema validado: cada pregunta trae OA, pista, justificación y fuente.
+  - Si el curso tiene estudiantes con TEA, aplica pautas de lenguaje claro.
+  - Las preguntas mal formadas se descartan antes de mostrarlas.
 - **Accesibilidad para el estudiante:**
   - Botón para escuchar la pregunta (síntesis de voz del navegador).
   - Alternativas grandes y una pregunta a la vez.
@@ -105,6 +133,7 @@ api/   .NET 10 Minimal API + EF Core + PostgreSQL (Npgsql). Endpoints en api/src
 web/   Next.js 15 + React 19 (TypeScript). /api/* se reenvía al API (variable API_URL).
 data/  oas.csv: Bases Curriculares oficiales, semilla del currículum.
 tools/curriculo/  extractor de OA desde los PDF oficiales del MINEDUC.
+web/public/metis.png  ilustración de Metis, del prototipo Evalia (Pengyi Labs).
 ```
 
 El stack es el que propone la arquitectura de Metis (`metis-docs`): .NET 10, Next.js y PostgreSQL.
@@ -123,3 +152,5 @@ cd web && npm install && API_URL=http://localhost:8080 npm run dev              
 - El login es solo para la demo: no hay registro, recuperación de contraseña ni roles más allá de profesor.
 - Para rendir, el estudiante se identifica con su RUT (modo nómina). Es suficiente para una demo, pero no es una autenticación fuerte.
 - El currículum (OA) es compartido entre profesores y cualquiera puede editarlo.
+- Los archivos subidos se guardan en PostgreSQL (hasta 15 MB cada uno). Para producción conviene un almacenamiento de objetos.
+- Al generar con IA, los materiales elegidos se envían a la API de Anthropic. No subas documentos con datos personales de estudiantes.

@@ -17,6 +17,7 @@ public class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<ExclusionOA> Exclusiones => Set<ExclusionOA>();
     public DbSet<Planificacion> Planificaciones => Set<Planificacion>();
     public DbSet<Material> Materiales => Set<Material>();
+    public DbSet<MaterialArchivo> MaterialArchivos => Set<MaterialArchivo>();
     public DbSet<Evaluacion> Evaluaciones => Set<Evaluacion>();
     public DbSet<Pregunta> Preguntas => Set<Pregunta>();
     public DbSet<Intento> Intentos => Set<Intento>();
@@ -64,7 +65,9 @@ public class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             e.Property(x => x.Tipo).HasConversion<string>();
             e.HasOne(x => x.Curso).WithMany().OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Objetivos).WithMany().UsingEntity(j => j.ToTable("MaterialObjetivos"));
+            e.HasOne(x => x.Archivo).WithOne().HasForeignKey<MaterialArchivo>(a => a.MaterialId).OnDelete(DeleteBehavior.Cascade);
         });
+        b.Entity<MaterialArchivo>().HasKey(a => a.MaterialId);
 
         b.Entity<Evaluacion>(e =>
         {
