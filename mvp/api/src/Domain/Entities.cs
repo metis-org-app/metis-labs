@@ -12,9 +12,13 @@ public class Profesor
 public class Asignatura
 {
     public int Id { get; set; }
-    public required string Codigo { get; set; }   // Código MINEDUC: LE, MA, CN, HI
+    public required string Codigo { get; set; }   // Código único en Metis: LE, LL, MA, CN, HI, IN…
     public required string Nombre { get; set; }
+    public string? Prefijo { get; set; }           // Prefijo del código oficial si difiere del código (Lengua y Literatura usa LE)
+    public string? Area { get; set; }              // Formación general, electivo o diferenciado (3° y 4° medio)
     public string Color { get; set; } = "#24507f";
+
+    public string PrefijoOficial => Prefijo ?? Codigo;
 }
 
 public class Nivel
@@ -37,6 +41,7 @@ public class ObjetivoAprendizaje
     public int Numero { get; set; }
     public string? Eje { get; set; }
     public required string Descripcion { get; set; }
+    public string? Fuente { get; set; }            // Documento oficial de origen, ej. "Bases Curriculares 1° a 6° básico (2012)"
 }
 
 public class Curso

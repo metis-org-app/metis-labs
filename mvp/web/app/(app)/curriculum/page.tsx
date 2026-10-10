@@ -24,15 +24,33 @@ export default function CurriculumPage() {
 
   useEffect(() => {
     api<Asignatura[]>('/asignaturas').then(setAsignaturas);
-    api<Nivel[]>('/niveles').then(setNiveles);
+    // El currículum completo tiene casi 1.800 OA: se parte mostrando el primer nivel.
+    api<Nivel[]>('/niveles').then((n) => {
+      setNiveles(n);
+      setFiltro((f) => (f.nivelId ? f : { ...f, nivelId: String(n[0]?.id ?? '') }));
+    });
     api<Curso[]>('/cursos').then(setCursos);
   }, []);
 
+  // Asignaturas con OA en el nivel elegido, agrupadas por área (plan común, electivos y diferenciados de 3° y 4° medio).
+  const [asignaturasNivel, setAsignaturasNivel] = useState<Asignatura[] | null>(null);
+  useEffect(() => {
+    if (!filtro.nivelId) return setAsignaturasNivel(null);
+    api<Asignatura[]>(`/asignaturas?nivelId=${filtro.nivelId}`).then(setAsignaturasNivel);
+  }, [filtro.nivelId]);
+  const opcionesAsig = asignaturasNivel ?? asignaturas;
+  const areas = useMemo(() => {
+    const m = new Map<string, Asignatura[]>();
+    for (const a of opcionesAsig) m.set(a.area ?? 'Otras', [...(m.get(a.area ?? 'Otras') ?? []), a]);
+    return [...m.entries()];
+  }, [opcionesAsig]);
+
   const cargar = useCallback(() => {
+    if (!niveles.length) return;
     const qs = new URLSearchParams();
     Object.entries(filtro).forEach(([k, v]) => v && qs.set(k, v.trim()));
     return api<Oa[]>(`/oas?${qs}`).then(setOas).catch((e) => setError(e.message));
-  }, [filtro]);
+  }, [filtro, niveles.length]);
   useEffect(() => {
     const t = setTimeout(cargar, 200);
     return () => clearTimeout(t);
@@ -103,8 +121,8 @@ export default function CurriculumPage() {
       />
 
       <div className="toolbar">
-        <select value={filtro.nivelId} onChange={(e) => setFiltro({ ...filtro, nivelId: e.target.value })} aria-label="Nivel">
-          <option value="">Todos los niveles</option>
+        <select value={filtro.nivelId} onChange={(e) => setFiltro({ ...filtro, nivelId: e.target.value, asignaturaId: '' })} aria-label="Nivel">
+          <option value="">Todos los niveles (lento)</option>
           {niveles.map((n) => (
             <option key={n.id} value={n.id}>
               {n.nombre}
@@ -113,10 +131,14 @@ export default function CurriculumPage() {
         </select>
         <select value={filtro.asignaturaId} onChange={(e) => setFiltro({ ...filtro, asignaturaId: e.target.value })} aria-label="Asignatura">
           <option value="">Todas las asignaturas</option>
-          {asignaturas.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.nombre}
-            </option>
+          {areas.map(([area, lista]) => (
+            <optgroup key={area} label={area}>
+              {lista.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nombre}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
         <input placeholder="Buscar: CN01 OA 03, “plantas”…" value={filtro.q} onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} />
@@ -165,8 +187,9 @@ export default function CurriculumPage() {
                       <div className="oa-row-head">
                         <OaTag oa={o} />
                         {o.eje && <span className="muted small">Eje: {o.eje}</span>}
+                        {o.fuente && <span className="muted small fuente">{o.fuente}</span>}
                       </div>
-                      <p>{o.descripcion}</p>
+                      <p className="oa-desc">{o.descripcion}</p>
                       <div className="oa-cursos small">
                         {o.cursos && o.cursos.length > 0 ? (
                           <>
@@ -229,7 +252,7 @@ function OaModal({ form: inicial, asignaturas, niveles, onClose, onSaved }: { fo
   const [error, setError] = useState<string | null>(null);
   const asig = asignaturas.find((a) => a.id === form.asignaturaId);
   const nivel = niveles.find((n) => n.id === form.nivelId);
-  const codigo = asig && nivel ? `${asig.codigo}${/^\d+B$/.test(nivel.codigo) ? nivel.codigo.replace('B', '').padStart(2, '0') : nivel.codigo} OA ${String(form.numero).padStart(2, '0')}` : '';
+  const codigo = asig && nivel ? `${asig.prefijo ?? asig.codigo}${/^\d+B$/.test(nivel.codigo) ? nivel.codigo.replace('B', '').padStart(2, '0') : nivel.codigo} OA ${String(form.numero).padStart(2, '0')}` : '';
 
   const guardar = async () => {
     const body = { asignaturaId: form.asignaturaId, nivelId: form.nivelId, numero: form.numero, eje: form.eje || null, descripcion: form.descripcion };
@@ -300,9 +323,16 @@ function ImportarModal({ onClose, onDone }: { onClose: () => void; onDone: (msg:
   const importar = async () => {
     setError(null);
     try {
-      const r = await api<{ creados: number; actualizados: number; errores: string[] }>('/oas/importar', { method: 'POST', headers: { 'content-type': 'text/csv' }, body: csv });
+      const r = await api<{ creados: number; actualizados: number; errores: string[]; asignaturasCreadas: number }>('/oas/importar', {
+        method: 'POST',
+        headers: { 'content-type': 'text/csv' },
+        body: csv,
+      });
       if (r.errores.length) setErrores(r.errores);
-      else onDone(`Importación lista: ${r.creados} OA creados y ${r.actualizados} actualizados.`);
+      else
+        onDone(
+          `Importación lista: ${r.creados} OA creados y ${r.actualizados} actualizados${r.asignaturasCreadas ? `, ${r.asignaturasCreadas} asignaturas nuevas` : ''}.`,
+        );
     } catch (e) {
       setError((e as Error).message);
     }
@@ -311,8 +341,9 @@ function ImportarModal({ onClose, onDone }: { onClose: () => void; onDone: (msg:
   return (
     <Modal title="Importar OA desde CSV" onClose={onClose} wide>
       <p className="small">
-        Columnas: <code>asignatura,nivel,numero,eje,descripcion</code>. Asignatura con código MINEDUC (LE, MA, CN, HI) y nivel como 1B…8B o 1M…4M. Usa comillas
-        si la descripción tiene comas. Si el OA ya existe, se actualiza.
+        Columnas: <code>asignatura,nivel,numero,eje,descripcion</code> y, opcionalmente, <code>asignatura_nombre,prefijo,area,fuente</code> (se leen por el
+        encabezado). Asignatura con su código en Metis (LE, LL, MA, CN, HI, IN…) y nivel como 1B…8B o 1M…4M. Si la asignatura no existe y viene{' '}
+        <code>asignatura_nombre</code>, se crea. Usa comillas si la descripción tiene comas o saltos de línea. Si el OA ya existe, se actualiza.
       </p>
       <input type="file" accept=".csv,text/csv" onChange={async (e) => e.target.files?.[0] && setCsv(await e.target.files[0].text())} />
       <textarea rows={8} className="mono" value={csv} onChange={(e) => setCsv(e.target.value)} placeholder={'asignatura,nivel,numero,eje,descripcion\nCN,2B,1,Ciencias de la vida,"Observar, describir y clasificar…"'} />

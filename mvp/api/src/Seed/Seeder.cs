@@ -22,7 +22,8 @@ public static class Seeder
                 new Asignatura { Codigo = "LE", Nombre = "Lenguaje y Comunicación", Color = "#c2410c" },
                 new Asignatura { Codigo = "MA", Nombre = "Matemática", Color = "#1d4ed8" },
                 new Asignatura { Codigo = "CN", Nombre = "Ciencias Naturales", Color = "#15803d" },
-                new Asignatura { Codigo = "HI", Nombre = "Historia, Geografía y Ciencias Sociales", Color = "#7e22ce" });
+                new Asignatura { Codigo = "HI", Nombre = "Historia, Geografía y Ciencias Sociales", Color = "#7e22ce" },
+                new Asignatura { Codigo = "LL", Nombre = "Lengua y Literatura", Prefijo = "LE", Color = "#c2410c" });
             await db.SaveChangesAsync();
         }
 
@@ -62,15 +63,18 @@ public static class Seeder
         db.Cursos.AddRange(c1A, c4B, c8A);
         await db.SaveChangesAsync();
 
-        // OA asignados: todo 1° básico al 1° A y Lenguaje de 8° al 8° A, con algo de avance.
-        foreach (var o in oas.Where(o => o.Nivel.Codigo == "1B"))
+        // OA asignados: las cuatro asignaturas troncales de 1° y 4° básico a sus cursos y Lengua y Literatura de 8° al 8° A, con algo de avance.
+        string[] troncales = ["LE", "MA", "CN", "HI"];
+        foreach (var o in oas.Where(o => o.Nivel.Codigo == "1B" && troncales.Contains(o.Asignatura.Codigo)))
         {
             var estado = o.Asignatura.Codigo == "CN" && o.Numero <= 2 ? EstadoOa.Cubierto
                 : o.Asignatura.Codigo == "CN" && o.Numero <= 6 ? EstadoOa.EnProgreso
                 : EstadoOa.Pendiente;
             db.CursoObjetivos.Add(new CursoOA { CursoId = c1A.Id, ObjetivoId = o.Id, Estado = estado });
         }
-        foreach (var o in oas.Where(o => o.Nivel.Codigo == "8B"))
+        foreach (var o in oas.Where(o => o.Nivel.Codigo == "4B" && troncales.Contains(o.Asignatura.Codigo)))
+            db.CursoObjetivos.Add(new CursoOA { CursoId = c4B.Id, ObjetivoId = o.Id });
+        foreach (var o in oas.Where(o => o.Nivel.Codigo == "8B" && o.Asignatura.Codigo == "LL"))
             db.CursoObjetivos.Add(new CursoOA { CursoId = c8A.Id, ObjetivoId = o.Id, Estado = o.Numero == 1 ? EstadoOa.EnProgreso : EstadoOa.Pendiente });
 
         // Estudiantes ficticios: nombres y RUT generados, no corresponden a personas reales.
@@ -155,14 +159,14 @@ public static class Seeder
         // Evaluación en borrador para 8° A.
         var evalLenguaje = new Evaluacion
         {
-            CursoId = c8A.Id, AsignaturaId = asig["LE"].Id, Titulo = "Textos de los medios de comunicación", Tipo = TipoEvaluacion.Sumativa,
+            CursoId = c8A.Id, AsignaturaId = asig["LL"].Id, Titulo = "Textos de los medios de comunicación", Tipo = TipoEvaluacion.Sumativa,
             Estado = EstadoEvaluacion.Borrador, DuracionMinutos = 45, Token = EvaluacionesEndpoints.NuevoToken(), NivelAyuda = 1,
             Instrucciones = "Lee la noticia entregada por tu profesor antes de responder.",
             Preguntas =
             [
-                P(1, TipoPregunta.Unica, "¿Cuál es el propósito principal de una noticia?", ["Entretener con una historia inventada", "Informar sobre un hecho actual", "Convencer de comprar un producto", "Expresar sentimientos"], [1], Oa("LE", "8B", 10)),
-                P(2, TipoPregunta.VerdaderoFalso, "Una carta al director expresa la opinión de quien la escribe.", [], [0], Oa("LE", "8B", 10)),
-                P(3, TipoPregunta.Abierta, "Explica una diferencia entre una noticia y una columna de opinión.", [], [], Oa("LE", "8B", 10), puntaje: 3),
+                P(1, TipoPregunta.Unica, "¿Cuál es el propósito principal de una noticia?", ["Entretener con una historia inventada", "Informar sobre un hecho actual", "Convencer de comprar un producto", "Expresar sentimientos"], [1], Oa("LL", "8B", 10)),
+                P(2, TipoPregunta.VerdaderoFalso, "Una carta al director expresa la opinión de quien la escribe.", [], [0], Oa("LL", "8B", 10)),
+                P(3, TipoPregunta.Abierta, "Explica una diferencia entre una noticia y una columna de opinión.", [], [], Oa("LL", "8B", 10), puntaje: 3),
             ],
         };
         db.Evaluaciones.AddRange(evalCiencias, evalLenguaje);
@@ -360,7 +364,7 @@ public static class Seeder
                 ## De 10 en 10
                 Agrupa palitos de helado en atados de 10 y cuenta: 10, 20, 30, …
                 """, [oa("MA", "1B", 1)]),
-            M("Cómo analizar una noticia", TipoMaterial.Guia, "LE", "8B",
+            M("Cómo analizar una noticia", TipoMaterial.Guia, "LL", "8B",
                 "Guía para identificar el hecho, las fuentes y la diferencia entre información y opinión.",
                 """
                 # Cómo analizar una noticia
@@ -376,8 +380,8 @@ public static class Seeder
 
                 ## Paso 4: Propósito
                 ¿Qué busca el medio con esta publicación? Fundamenta con una cita del texto.
-                """, [oa("LE", "8B", 10)]),
-            M("Pasos para leer una noticia (lectura fácil)", TipoMaterial.Lectura, "LE", "8B",
+                """, [oa("LL", "8B", 10)]),
+            M("Pasos para leer una noticia (lectura fácil)", TipoMaterial.Lectura, "LL", "8B",
                 "Versión en lectura fácil con pasos numerados y preguntas cerradas para cada paso.",
                 """
                 # Pasos para leer una noticia
@@ -391,7 +395,7 @@ public static class Seeder
                 ## Recuerda
                 Un hecho se puede comprobar.
                 Una opinión es lo que alguien piensa.
-                """, [oa("LE", "8B", 10)], lecturaFacil: true),
+                """, [oa("LL", "8B", 10)], lecturaFacil: true),
             M("Bases Curriculares en curriculumnacional.cl", TipoMaterial.Lectura, "CN", "1B",
                 "Sitio oficial del MINEDUC con los programas de estudio, OA e indicadores de evaluación.",
                 "Consulta los programas de estudio y los indicadores de evaluación de cada OA en el sitio oficial del Ministerio de Educación.",

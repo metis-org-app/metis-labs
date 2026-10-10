@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { avisarCursos } from '@/lib/eventos';
-import type { Curso, Nivel } from '@/lib/types';
+import type { Asignatura, Curso, Nivel } from '@/lib/types';
 import { Barra, Empty, ErrorBox, Modal, PageHead } from '@/components/ui';
 
 export default function CursosPage() {
@@ -81,7 +81,8 @@ function NuevoCurso({ onClose, onCreated }: { onClose: () => void; onCreated: (i
   const [nivelId, setNivelId] = useState<number>(0);
   const [letra, setLetra] = useState('A');
   const [anio, setAnio] = useState(new Date().getFullYear());
-  const [asignarOas, setAsignarOas] = useState(true);
+  const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
+  const [elegidas, setElegidas] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -90,15 +91,32 @@ function NuevoCurso({ onClose, onCreated }: { onClose: () => void; onCreated: (i
       setNivelId(n[0]?.id ?? 0);
     });
   }, []);
+  // Asignaturas con OA en el nivel. Por defecto se marcan las del plan común (formación general).
+  useEffect(() => {
+    if (!nivelId) return;
+    api<Asignatura[]>(`/asignaturas?nivelId=${nivelId}`).then((l) => {
+      setAsignaturas(l);
+      setElegidas(new Set(l.filter((a) => (a.area ?? 'Formación general') === 'Formación general').map((a) => a.id)));
+    });
+  }, [nivelId]);
+  const areas = useMemo(() => {
+    const m = new Map<string, Asignatura[]>();
+    for (const a of asignaturas) m.set(a.area ?? 'Otras', [...(m.get(a.area ?? 'Otras') ?? []), a]);
+    return [...m.entries()];
+  }, [asignaturas]);
+  const toggle = (id: number) =>
+    setElegidas((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const totalOas = asignaturas.filter((a) => elegidas.has(a.id)).reduce((t, a) => t + a.oas, 0);
 
   const guardar = async () => {
     setError(null);
     try {
-      const r = await api<{ id: number }>('/cursos', { method: 'POST', json: { nivelId, letra, anio } });
-      if (asignarOas) {
-        const oas = await api<{ id: number }[]>(`/oas?nivelId=${nivelId}`);
-        if (oas.length) await api(`/cursos/${r.id}/oas`, { method: 'POST', json: { objetivoIds: oas.map((o) => o.id) } });
-      }
+      const r = await api<{ id: number }>('/cursos', { method: 'POST', json: { nivelId, letra, anio, asignaturaIds: [...elegidas] } });
       onCreated(r.id);
     } catch (e) {
       setError((e as Error).message);
@@ -127,10 +145,37 @@ function NuevoCurso({ onClose, onCreated }: { onClose: () => void; onCreated: (i
           <input type="number" value={anio} onChange={(e) => setAnio(Number(e.target.value))} />
         </label>
       </div>
-      <label className="check-row">
-        <input type="checkbox" checked={asignarOas} onChange={(e) => setAsignarOas(e.target.checked)} />
-        Asignar todos los OA del nivel que están en el currículum (puedes quitarlos después)
-      </label>
+      <div className="asig-elegir">
+        <div className="asig-elegir-head">
+          <strong>Asignaturas del curso</strong>
+          <span className="muted small">
+            Se asignan sus {totalOas} OA del nivel (puedes quitar o sumar OA después).{' '}
+            <button type="button" className="link-btn" onClick={() => setElegidas(new Set(asignaturas.map((a) => a.id)))}>
+              Todas
+            </button>{' '}
+            ·{' '}
+            <button type="button" className="link-btn" onClick={() => setElegidas(new Set())}>
+              Ninguna
+            </button>
+          </span>
+        </div>
+        {areas.map(([area, lista]) => (
+          <fieldset key={area}>
+            {areas.length > 1 && <legend className="small muted">{area}</legend>}
+            <div className="asig-checks">
+              {lista.map((a) => (
+                <label key={a.id} className="check-row">
+                  <input type="checkbox" checked={elegidas.has(a.id)} onChange={() => toggle(a.id)} />
+                  <span className="dot" style={{ background: a.color }} />
+                  <span>
+                    {a.nombre} <span className="muted small">{a.oas} OA</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </div>
       <ErrorBox error={error} />
       <div className="modal-actions">
         <button className="btn btn-ghost" onClick={onClose}>

@@ -10,7 +10,7 @@ public record OaRequest(int AsignaturaId, int NivelId, int Numero, string? Eje, 
 
 public static partial class CurriculumEndpoints
 {
-    [System.Text.RegularExpressions.GeneratedRegex(@"^([A-Z]{2})\s*(\d{2}|\dM)\s*OA\s*(\d{1,2})$")]
+    [System.Text.RegularExpressions.GeneratedRegex(@"^([A-Z]{2,3})\s*(\d{2}|\dM)\s*OA\s*(\d{1,2})$")]
     private static partial System.Text.RegularExpressions.Regex CodigoOficialRegex();
 
     [System.Text.RegularExpressions.GeneratedRegex(@"^OA\s*(\d{1,2})$")]
@@ -20,8 +20,18 @@ public static partial class CurriculumEndpoints
     {
         var g = app.MapGroup("/api").RequireAuthorization();
 
-        g.MapGet("/asignaturas", (AppDb db) =>
-            db.Asignaturas.OrderBy(a => a.Nombre).Select(a => new { a.Id, a.Codigo, a.Nombre, a.Color }).ToListAsync());
+        // Con nivelId, solo las asignaturas que tienen OA en ese nivel (para crear un curso o filtrar el currículum).
+        g.MapGet("/asignaturas", (int? nivelId, AppDb db) =>
+            db.Asignaturas
+                .Select(a => new
+                {
+                    a.Id, a.Codigo, a.Nombre, a.Color, Prefijo = a.Prefijo ?? a.Codigo, a.Area,
+                    Oas = db.Objetivos.Count(o => o.AsignaturaId == a.Id && (nivelId == null || o.NivelId == nivelId)),
+                })
+                .Where(a => nivelId == null || a.Oas > 0)
+                .OrderBy(a => a.Area == null ? 0 : a.Area == "Formación general" ? 0 : a.Area.StartsWith("Formación general") ? 1 : 2)
+                .ThenBy(a => a.Nombre)
+                .ToListAsync());
 
         g.MapGet("/niveles", async (AppDb db) =>
             (await db.Niveles.OrderBy(n => n.Orden).ToListAsync())
@@ -43,7 +53,7 @@ public static partial class CurriculumEndpoints
                     var asig = codigo.Groups[1].Value;
                     var nivel = codigo.Groups[2].Value;
                     var num = int.Parse(codigo.Groups[3].Value);
-                    query = query.Where(o => o.Asignatura.Codigo == asig && o.Nivel.CodigoMineduc == nivel && o.Numero == num);
+                    query = query.Where(o => (o.Asignatura.Prefijo ?? o.Asignatura.Codigo) == asig && o.Nivel.CodigoMineduc == nivel && o.Numero == num);
                 }
                 else
                 {
@@ -108,7 +118,7 @@ public static partial class CurriculumEndpoints
             return borrados == 0 ? Results.NotFound() : Results.NoContent();
         });
 
-        // Carga masiva: CSV con encabezado asignatura,nivel,numero,eje,descripcion
+        // Carga masiva: CSV con encabezado asignatura,nivel,numero,eje,descripcion (y opcionales asignatura_nombre,prefijo,area,fuente)
         g.MapPost("/oas/importar", async (HttpRequest request, AppDb db) =>
         {
             using var reader = new StreamReader(request.Body);

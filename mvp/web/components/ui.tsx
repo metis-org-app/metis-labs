@@ -38,7 +38,7 @@ export function OaDetalle({ oa, children }: { oa: Oa; children?: ReactNode }) {
         <OaTag oa={oa} />
         {oa.eje && <span className="muted small">Eje: {oa.eje}</span>}
       </div>
-      <p>{oa.descripcion}</p>
+      <p className="oa-desc">{oa.descripcion}</p>
       {children}
     </div>
   );

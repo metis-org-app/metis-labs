@@ -46,8 +46,8 @@ Para volver a los datos de ejemplo (borra todo): `docker compose down -v && dock
 
 ## Lógica educativa
 
-- **Códigos de OA oficiales** con el formato MINEDUC: asignatura + nivel + número (por ejemplo `CN01 OA 03` es Ciencias Naturales, 1° básico, OA 3). Siempre se muestra el nivel y la asignatura del OA. La búsqueda acepta el código completo.
-- **Curso = nivel + letra + año.** Al crear un curso puedes asignarle todos los OA del nivel. También puedes sumar OA de otros niveles para nivelación o trabajo multinivel.
+- **Códigos de OA oficiales** con el formato MINEDUC: asignatura + nivel + número (por ejemplo `CN01 OA 03` es Ciencias Naturales, 1° básico, OA 3, y `LE07 OA 10` es Lengua y Literatura, 7° básico). Siempre se muestra el nivel y la asignatura del OA. La búsqueda acepta el código completo.
+- **Curso = nivel + letra + año.** Al crear un curso eliges sus asignaturas (por defecto, las del plan común del nivel) y se le asignan todos sus OA. Después puedes quitar OA o sumar OA de otros niveles para nivelación o trabajo multinivel.
 - **Adecuaciones por OA:**
   - Si un estudiante está excluido de un OA, sus evaluaciones omiten esas preguntas.
   - Su nota se calcula sobre el resto.
@@ -74,18 +74,37 @@ Para volver a los datos de ejemplo (borra todo): `docker compose down -v && dock
   - Alternativas grandes y una pregunta a la vez.
   - Materiales en lectura fácil.
 
-## Datos de ejemplo
+## Currículum oficial
 
-- `data/oas.csv` se carga cuando la base está vacía. **Es una muestra parcial** de las Bases Curriculares (Ciencias Naturales de 1° básico completo y algunos OA de Lenguaje, Matemática e Historia), transcrita a mano: **verifícala contra [curriculumnacional.cl](https://www.curriculumnacional.cl)**.
-- Para cargar el currículum completo, agrega filas al CSV o usa *Currículum → Importar CSV*. Columnas: `asignatura,nivel,numero,eje,descripcion` (asignatura `LE`, `MA`, `CN` o `HI`; nivel `1B`…`8B` o `1M`…`4M`).
-- **Estudiantes, apoderados, conversaciones y entregas de la demo son ficticios.** No cargues datos reales de menores en este entorno.
+`data/oas.csv` trae las **Bases Curriculares oficiales completas de 1° básico a IV medio**: 1.793 OA de 51 asignaturas. Se cargan cuando la base está vacía. Cada OA indica el documento del que viene:
+
+| Documento MINEDUC | Niveles | Asignaturas |
+|---|---|---|
+| Bases Curriculares 1° a 6° básico (2012) | 1°–6° básico | Lenguaje y Comunicación, Matemática, Ciencias Naturales, Historia, Inglés (5° y 6°), Artes Visuales, Música, Educación Física y Salud, Tecnología, Orientación |
+| Bases Curriculares 7° básico a 2° medio (2015) | 7° básico–II medio | Lengua y Literatura, Matemática, Ciencias Naturales, Historia, Inglés, Artes Visuales, Música, Educación Física y Salud, Tecnología, Orientación |
+| Bases Curriculares 3° y 4° medio (2019) | III y IV medio | Plan común (Lengua y Literatura, Matemática, Inglés, Filosofía, Educación Ciudadana, Ciencias para la Ciudadanía), plan común electivo y las 27 asignaturas de profundización de la Formación Diferenciada Humanístico-Científica |
+
+Cómo se adaptó al modelo de Metis:
+
+- **Se extrajo de los PDF oficiales** con `tools/curriculo` (ver su README). Se revisó que la numeración de cada asignatura y nivel sea continua y que los totales coincidan con los documentos, por ejemplo 26 OA de Lenguaje en 1° básico y 20 de Matemática. Los OA con viñetas conservan sus saltos de línea.
+- **Asignaturas.** Cada una tiene un código único en Metis, un prefijo oficial y un área: *Formación general*, *Formación general electiva* o *Formación diferenciada HC*. Lengua y Literatura usa el código `LL` en Metis, pero su código oficial es `LE` (por ejemplo `LE08 OA 10`).
+- **3° y 4° medio:**
+  - Las asignaturas que el MINEDUC define para "3° o 4° medio" se cargan en ambos niveles.
+  - Ciencias para la Ciudadanía se divide en sus cuatro módulos, cada uno con su numeración.
+  - Artes, Música y Educación Física del plan electivo son asignaturas propias (`ARE`, `MUE`, `EFE`) con el mismo prefijo oficial.
+  - **Los prefijos de las asignaturas nuevas de 3° y 4° medio** (`EC`, `FI`, `CCB`, `FIS`, `LDI`, etc.) **son de Metis.** Contrástalos con [curriculumnacional.cl](https://www.curriculumnacional.cl) antes de usarlos en documentos oficiales.
+- **No se incluyen** los OA de habilidades y actitudes (se numeran con letras), la Formación Diferenciada Técnico-Profesional ni la Artística, Religión, ni los programas de Lengua Indígena.
+- **Para actualizar o sumar OA:** usa *Currículum → Importar CSV* o edita `data/oas.csv`. Columnas: `asignatura,nivel,numero,eje,descripcion` y, de forma opcional, `asignatura_nombre,prefijo,area,fuente`. Si una asignatura no existe y viene `asignatura_nombre`, se crea. Si el OA ya existe, se actualiza.
+
+Datos de la demo: **estudiantes, apoderados, conversaciones y entregas son ficticios.** No cargues datos reales de menores en este entorno.
 
 ## Estructura
 
 ```
 api/   .NET 10 Minimal API + EF Core + PostgreSQL (Npgsql). Endpoints en api/src/Endpoints, lógica en api/src/Domain.
 web/   Next.js 15 + React 19 (TypeScript). /api/* se reenvía al API (variable API_URL).
-data/  oas.csv, semilla del currículum.
+data/  oas.csv: Bases Curriculares oficiales, semilla del currículum.
+tools/curriculo/  extractor de OA desde los PDF oficiales del MINEDUC.
 ```
 
 El stack es el que propone la arquitectura de Metis (`metis-docs`): .NET 10, Next.js y PostgreSQL.

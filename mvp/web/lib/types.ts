@@ -1,5 +1,5 @@
 export type Nivel = { id: number; codigo: string; nombre: string; ciclo: string };
-export type Asignatura = { id: number; codigo: string; nombre: string; color: string };
+export type Asignatura = { id: number; codigo: string; nombre: string; color: string; prefijo: string; area: string | null; oas: number };
 
 export type Oa = {
   id: number;
@@ -15,6 +15,7 @@ export type Oa = {
   nivelId: number;
   nivel: string;
   nivelOrden: number;
+  fuente: string | null;
   cursos?: { id: number; nombre: string; anio: number }[] | null;
 };
 
