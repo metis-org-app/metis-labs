@@ -86,7 +86,7 @@ export function CurriculoCurso({ curso, onChange }: { curso: CursoDetalle; onCha
                   <td className="oa-cell">
                     <OaTag oa={x.oa} />
                     {x.oa.eje && <span className="muted small"> · {x.oa.eje}</span>}
-                    <p>{x.oa.descripcion}</p>
+                    <p className="oa-desc">{x.oa.descripcion}</p>
                   </td>
                   <td>
                     <select className={`estado-select es-${x.estado.toLowerCase()}`} value={x.estado} onChange={(e) => cambiarEstado(x.oa.id, e.target.value as EstadoOa)} aria-label={`Estado de ${x.oa.codigoOficial}`}>
@@ -154,9 +154,11 @@ function AsignarOas({ curso, yaAsignados, onClose, onDone }: { curso: CursoDetal
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api<Asignatura[]>('/asignaturas').then(setAsignaturas);
     api<Nivel[]>('/niveles').then(setNiveles);
   }, []);
+  useEffect(() => {
+    api<Asignatura[]>(`/asignaturas?nivelId=${nivelId}`).then(setAsignaturas);
+  }, [nivelId]);
   useEffect(() => {
     const qs = new URLSearchParams({ nivelId });
     if (asignaturaId) qs.set('asignaturaId', asignaturaId);
@@ -215,7 +217,7 @@ function AsignarOas({ curso, yaAsignados, onClose, onDone }: { curso: CursoDetal
             <span>
               <OaTag oa={o} />
               <br />
-              <span className="small">{o.descripcion}</span>
+              <span className="small oa-desc">{o.descripcion}</span>
             </span>
           </label>
         ))}
@@ -252,7 +254,7 @@ function Adecuaciones({ cursoId, oa, onClose, onDone }: { cursoId: number; oa: O
 
   return (
     <Modal title={`Adecuaciones · ${oa.codigoOficial}`} onClose={onClose}>
-      <p className="small">{oa.descripcion}</p>
+      <p className="small oa-desc">{oa.descripcion}</p>
       <p className="muted small">
         Marca a los estudiantes que <strong>no trabajarán este OA</strong> por ahora. Sus evaluaciones omitirán las preguntas de este OA y su nota se
         calculará sobre el resto.

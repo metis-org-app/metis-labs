@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MetisCurriculum.Api.Endpoints;
 
-public record CursoRequest(int NivelId, string Letra, int Anio);
+public record CursoRequest(int NivelId, string Letra, int Anio, List<int>? AsignaturaIds = null);
 public record AsignarOasRequest(List<int> ObjetivoIds);
 public record EstadoOaRequest(EstadoOa Estado);
 public record ExclusionesRequest(List<int> EstudianteIds);
@@ -58,6 +58,13 @@ public static class CursosEndpoints
             var curso = new Curso { ProfesorId = profeId, NivelId = req.NivelId, Letra = letra, Anio = req.Anio };
             db.Cursos.Add(curso);
             await db.SaveChangesAsync();
+            // Asigna todos los OA del nivel de las asignaturas elegidas.
+            if (req.AsignaturaIds is { Count: > 0 } ids)
+            {
+                var oas = await db.Objetivos.Where(o => o.NivelId == req.NivelId && ids.Contains(o.AsignaturaId)).Select(o => o.Id).ToListAsync();
+                db.CursoObjetivos.AddRange(oas.Select(oaId => new CursoOA { CursoId = curso.Id, ObjetivoId = oaId }));
+                await db.SaveChangesAsync();
+            }
             return Results.Created($"/api/cursos/{curso.Id}", new { curso.Id });
         });
 
