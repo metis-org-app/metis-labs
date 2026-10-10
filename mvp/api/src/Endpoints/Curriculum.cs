@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using MetisCurriculum.Api.Data;
 using MetisCurriculum.Api.Domain;
 using MetisCurriculum.Api.Seed;
@@ -7,47 +8,72 @@ namespace MetisCurriculum.Api.Endpoints;
 
 public record OaRequest(int AsignaturaId, int NivelId, int Numero, string? Eje, string Descripcion);
 
-public static class CurriculumEndpoints
+public static partial class CurriculumEndpoints
 {
+    [System.Text.RegularExpressions.GeneratedRegex(@"^([A-Z]{2})\s*(\d{2}|\dM)\s*OA\s*(\d{1,2})$")]
+    private static partial System.Text.RegularExpressions.Regex CodigoOficialRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^OA\s*(\d{1,2})$")]
+    private static partial System.Text.RegularExpressions.Regex SoloOaRegex();
+
     public static void MapCurriculum(this IEndpointRouteBuilder app)
     {
         var g = app.MapGroup("/api").RequireAuthorization();
 
         g.MapGet("/asignaturas", (AppDb db) =>
-            db.Asignaturas.OrderBy(a => a.Nombre).Select(a => new { a.Id, a.Codigo, a.Nombre }).ToListAsync());
+            db.Asignaturas.OrderBy(a => a.Nombre).Select(a => new { a.Id, a.Codigo, a.Nombre, a.Color }).ToListAsync());
 
-        g.MapGet("/niveles", (AppDb db) =>
-            db.Niveles.OrderBy(n => n.Orden).Select(n => new { n.Id, n.Codigo, n.Nombre }).ToListAsync());
+        g.MapGet("/niveles", async (AppDb db) =>
+            (await db.Niveles.OrderBy(n => n.Orden).ToListAsync())
+                .Select(n => new { n.Id, n.Codigo, n.Nombre, n.Ciclo }));
 
-        g.MapGet("/oas", async (int? asignaturaId, int? nivelId, string? q, AppDb db) =>
+        // OA del currículum, con los cursos del profesor donde están asignados.
+        g.MapGet("/oas", async (int? asignaturaId, int? nivelId, string? q, ClaimsPrincipal user, AppDb db) =>
         {
-            var query = db.Objetivos.AsQueryable();
+            var query = db.Objetivos.Include(o => o.Asignatura).Include(o => o.Nivel).AsQueryable();
             if (asignaturaId is not null) query = query.Where(o => o.AsignaturaId == asignaturaId);
             if (nivelId is not null) query = query.Where(o => o.NivelId == nivelId);
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var term = q.Trim();
-                var numero = int.TryParse(term.ToUpperInvariant().Replace("OA", "").Trim(), out var n) ? n : -1;
-                query = query.Where(o => o.Numero == numero
-                    || EF.Functions.ILike(o.Descripcion, $"%{term}%")
-                    || (o.Eje != null && EF.Functions.ILike(o.Eje, $"%{term}%")));
-            }
-            return await query
-                .OrderBy(o => o.Nivel.Orden).ThenBy(o => o.Asignatura.Nombre).ThenBy(o => o.Numero)
-                .Select(o => new
+                var codigo = CodigoOficialRegex().Match(term.ToUpperInvariant());
+                if (codigo.Success)
                 {
-                    o.Id, Codigo = "OA" + o.Numero, o.Numero, o.Eje, o.Descripcion,
-                    o.AsignaturaId, Asignatura = o.Asignatura.Nombre,
-                    o.NivelId, Nivel = o.Nivel.Nombre, NivelOrden = o.Nivel.Orden,
-                })
+                    // Código oficial completo, ej: "CN01 OA 03" o "LE1M OA 2".
+                    var asig = codigo.Groups[1].Value;
+                    var nivel = codigo.Groups[2].Value;
+                    var num = int.Parse(codigo.Groups[3].Value);
+                    query = query.Where(o => o.Asignatura.Codigo == asig && o.Nivel.CodigoMineduc == nivel && o.Numero == num);
+                }
+                else
+                {
+                    var soloOa = SoloOaRegex().Match(term.ToUpperInvariant());
+                    var numero = soloOa.Success ? int.Parse(soloOa.Groups[1].Value) : -1;
+                    query = query.Where(o => o.Numero == numero
+                        || EF.Functions.ILike(o.Descripcion, $"%{term}%")
+                        || (o.Eje != null && EF.Functions.ILike(o.Eje, $"%{term}%")));
+                }
+            }
+            var oas = await query.OrderBy(o => o.Nivel.Orden).ThenBy(o => o.Asignatura.Nombre).ThenBy(o => o.Numero).ToListAsync();
+
+            var profeId = user.ProfesorId();
+            var asignaciones = await db.CursoObjetivos
+                .Where(c => c.Curso.ProfesorId == profeId)
+                .Select(c => new { c.ObjetivoId, c.CursoId, Curso = c.Curso.Nivel.Nombre + " " + c.Curso.Letra, c.Curso.Anio })
                 .ToListAsync();
+            var porOa = asignaciones.ToLookup(a => a.ObjetivoId);
+
+            return oas.Select(o => Dtos.Oa(o) with
+            {
+                Cursos = porOa[o.Id].OrderBy(x => x.Curso).Select(x => new CursoRef(x.CursoId, x.Curso, x.Anio)).ToList(),
+            });
         });
 
         g.MapPost("/oas", async (OaRequest req, AppDb db) =>
         {
             if (Validar(req) is { } error) return error;
             if (await db.Objetivos.AnyAsync(o => o.AsignaturaId == req.AsignaturaId && o.NivelId == req.NivelId && o.Numero == req.Numero))
-                return Results.Problem($"Ya existe el OA{req.Numero} para esa asignatura y nivel", statusCode: 409);
+                return Results.Problem($"Ya existe el OA {req.Numero} para esa asignatura y nivel", statusCode: 409);
             var oa = new ObjetivoAprendizaje
             {
                 AsignaturaId = req.AsignaturaId, NivelId = req.NivelId, Numero = req.Numero,
@@ -64,7 +90,7 @@ public static class CurriculumEndpoints
             var oa = await db.Objetivos.FindAsync(id);
             if (oa is null) return Results.NotFound();
             if (await db.Objetivos.AnyAsync(o => o.Id != id && o.AsignaturaId == req.AsignaturaId && o.NivelId == req.NivelId && o.Numero == req.Numero))
-                return Results.Problem($"Ya existe el OA{req.Numero} para esa asignatura y nivel", statusCode: 409);
+                return Results.Problem($"Ya existe el OA {req.Numero} para esa asignatura y nivel", statusCode: 409);
             oa.AsignaturaId = req.AsignaturaId; oa.NivelId = req.NivelId; oa.Numero = req.Numero;
             oa.Eje = string.IsNullOrWhiteSpace(req.Eje) ? null : req.Eje.Trim();
             oa.Descripcion = req.Descripcion.Trim();
@@ -75,17 +101,18 @@ public static class CurriculumEndpoints
         g.MapDelete("/oas/{id:int}", async (int id, AppDb db) =>
         {
             if (await db.CursoObjetivos.AnyAsync(c => c.ObjetivoId == id))
-                return Results.Problem("El OA está asignado a uno o más cursos; quítalo de los cursos antes de eliminarlo", statusCode: 409);
+                return Results.Problem("El OA está asignado a uno o más cursos. Quítalo de esos cursos antes de eliminarlo.", statusCode: 409);
+            if (await db.Preguntas.AnyAsync(p => p.ObjetivoId == id))
+                return Results.Problem("El OA se usa en preguntas de evaluaciones. No se puede eliminar.", statusCode: 409);
             var borrados = await db.Objetivos.Where(o => o.Id == id).ExecuteDeleteAsync();
             return borrados == 0 ? Results.NotFound() : Results.NoContent();
         });
 
-        // Carga masiva: CSV separado por ';' con encabezado asignatura;nivel;numero;eje;descripcion
+        // Carga masiva: CSV con encabezado asignatura,nivel,numero,eje,descripcion
         g.MapPost("/oas/importar", async (HttpRequest request, AppDb db) =>
         {
             using var reader = new StreamReader(request.Body);
-            var csv = await reader.ReadToEndAsync();
-            var resultado = await CsvImporter.ImportarAsync(db, csv);
+            var resultado = await CsvImporter.ImportarAsync(db, await reader.ReadToEndAsync());
             return Results.Ok(resultado);
         }).Accepts<string>("text/csv", "text/plain");
     }

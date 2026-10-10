@@ -7,6 +7,7 @@ namespace MetisCurriculum.Api.Endpoints;
 
 public record CursoRequest(int NivelId, string Letra, int Anio);
 public record AsignarOasRequest(List<int> ObjetivoIds);
+public record EstadoOaRequest(EstadoOa Estado);
 public record ExclusionesRequest(List<int> EstudianteIds);
 
 public static class CursosEndpoints
@@ -25,9 +26,26 @@ public static class CursosEndpoints
                 {
                     c.Id, c.NivelId, Nivel = c.Nivel.Nombre, c.Letra, c.Anio,
                     Nombre = c.Nivel.Nombre + " " + c.Letra,
-                    TotalOas = c.Objetivos.Count, TotalEstudiantes = c.Estudiantes.Count,
+                    TotalOas = c.Objetivos.Count,
+                    OasCubiertos = c.Objetivos.Count(o => o.Estado == EstadoOa.Cubierto),
+                    TotalEstudiantes = c.Estudiantes.Count,
+                    EstudiantesPie = c.Estudiantes.Count(e => e.TipoPie != TipoPie.Ninguno),
+                    EvaluacionesAbiertas = db.Evaluaciones.Count(e => e.CursoId == c.Id && e.Estado == EstadoEvaluacion.Publicada),
+                    Asignaturas = c.Objetivos.Select(o => o.Objetivo.Asignatura.Nombre).Distinct().ToList(),
                 })
                 .ToListAsync());
+
+        g.MapGet("/{id:int}", async (int id, ClaimsPrincipal user, AppDb db) =>
+        {
+            var c = await db.CursoPropio(id, user);
+            if (c is null) return Results.NotFound();
+            return Results.Ok(new
+            {
+                c.Id, c.NivelId, Nivel = c.Nivel.Nombre, c.Nivel.Ciclo, c.Letra, c.Anio, Nombre = Dtos.NombreCurso(c),
+                TotalEstudiantes = await db.Estudiantes.CountAsync(e => e.CursoId == id),
+                TotalOas = await db.CursoObjetivos.CountAsync(o => o.CursoId == id),
+            });
+        });
 
         g.MapPost("/", async (CursoRequest req, ClaimsPrincipal user, AppDb db) =>
         {
@@ -43,36 +61,41 @@ public static class CursosEndpoints
             return Results.Created($"/api/cursos/{curso.Id}", new { curso.Id });
         });
 
-        g.MapPut("/{id:int}", async (int id, CursoRequest req, ClaimsPrincipal user, AppDb db) =>
-        {
-            var curso = await db.CursoPropio(id, user);
-            if (curso is null) return Results.NotFound();
-            curso.NivelId = req.NivelId; curso.Letra = req.Letra.Trim().ToUpperInvariant(); curso.Anio = req.Anio;
-            await db.SaveChangesAsync();
-            return Results.NoContent();
-        });
-
         g.MapDelete("/{id:int}", async (int id, ClaimsPrincipal user, AppDb db) =>
         {
             var borrados = await db.Cursos.Where(c => c.Id == id && c.ProfesorId == user.ProfesorId()).ExecuteDeleteAsync();
             return borrados == 0 ? Results.NotFound() : Results.NoContent();
         });
 
-        // --- OA asignados al curso ---
+        // --- Currículum del curso: OA asignados, estado de cobertura, planificación y logro ---
 
         g.MapGet("/{id:int}/oas", async (int id, ClaimsPrincipal user, AppDb db) =>
         {
             if (await db.CursoPropio(id, user) is null) return Results.NotFound();
-            var oas = await db.CursoObjetivos.Where(c => c.CursoId == id)
+            var asignados = await db.CursoObjetivos.Where(c => c.CursoId == id)
+                .Include(c => c.Objetivo).ThenInclude(o => o.Asignatura)
+                .Include(c => c.Objetivo).ThenInclude(o => o.Nivel)
+                .ToListAsync();
+            var exclusiones = await db.Exclusiones.Where(x => x.CursoId == id).GroupBy(x => x.ObjetivoId)
+                .Select(g => new { g.Key, Total = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Total);
+            var planificado = await db.Planificaciones.Where(p => p.CursoId == id).SelectMany(p => p.Objetivos.Select(o => o.Id))
+                .GroupBy(x => x).Select(g => new { g.Key, Total = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Total);
+            var evaluado = await db.Preguntas.Where(p => p.Evaluacion.CursoId == id && p.ObjetivoId != null)
+                .Select(p => new { OaId = p.ObjetivoId!.Value, p.EvaluacionId }).Distinct()
+                .GroupBy(x => x.OaId).Select(g => new { g.Key, Total = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Total);
+            var logro = await Logro.PorOaAsync(db, cursoId: id);
+
+            return Results.Ok(asignados
                 .OrderBy(c => c.Objetivo.Asignatura.Nombre).ThenBy(c => c.Objetivo.Numero)
                 .Select(c => new
                 {
-                    c.Objetivo.Id, Codigo = "OA" + c.Objetivo.Numero, c.Objetivo.Numero, c.Objetivo.Eje,
-                    c.Objetivo.Descripcion, Asignatura = c.Objetivo.Asignatura.Nombre, Nivel = c.Objetivo.Nivel.Nombre,
-                    Excluidos = db.Exclusiones.Count(x => x.CursoId == id && x.ObjetivoId == c.ObjetivoId),
-                })
-                .ToListAsync();
-            return Results.Ok(oas);
+                    Oa = Dtos.Oa(c.Objetivo),
+                    Estado = c.Estado.ToString(),
+                    Excluidos = exclusiones.GetValueOrDefault(c.ObjetivoId),
+                    Planificaciones = planificado.GetValueOrDefault(c.ObjetivoId),
+                    Evaluaciones = evaluado.GetValueOrDefault(c.ObjetivoId),
+                    Logro = logro.TryGetValue(c.ObjetivoId, out var l) ? new { l.Porcentaje, l.Nivel } : null,
+                }));
         });
 
         g.MapPost("/{id:int}/oas", async (int id, AsignarOasRequest req, ClaimsPrincipal user, AppDb db) =>
@@ -84,6 +107,14 @@ public static class CursosEndpoints
             db.CursoObjetivos.AddRange(nuevos.Select(oaId => new CursoOA { CursoId = id, ObjetivoId = oaId }));
             await db.SaveChangesAsync();
             return Results.Ok(new { asignados = nuevos.Count, yaExistian = validos.Count - nuevos.Count });
+        });
+
+        g.MapPut("/{id:int}/oas/{oaId:int}/estado", async (int id, int oaId, EstadoOaRequest req, ClaimsPrincipal user, AppDb db) =>
+        {
+            if (await db.CursoPropio(id, user) is null) return Results.NotFound();
+            var n = await db.CursoObjetivos.Where(c => c.CursoId == id && c.ObjetivoId == oaId)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.Estado, req.Estado));
+            return n == 0 ? Results.NotFound() : Results.NoContent();
         });
 
         g.MapDelete("/{id:int}/oas/{oaId:int}", async (int id, int oaId, ClaimsPrincipal user, AppDb db) =>
@@ -98,13 +129,11 @@ public static class CursosEndpoints
         g.MapGet("/{id:int}/oas/{oaId:int}/exclusiones", async (int id, int oaId, ClaimsPrincipal user, AppDb db) =>
         {
             if (await db.CursoPropio(id, user) is null) return Results.NotFound();
-            var excluidos = await db.Exclusiones.Where(x => x.CursoId == id && x.ObjetivoId == oaId)
-                .Select(x => x.EstudianteId).ToListAsync();
-            var estudiantes = await db.Estudiantes.Where(e => e.CursoId == id)
+            var excluidos = await db.Exclusiones.Where(x => x.CursoId == id && x.ObjetivoId == oaId).Select(x => x.EstudianteId).ToListAsync();
+            return Results.Ok(await db.Estudiantes.Where(e => e.CursoId == id)
                 .OrderBy(e => e.Apellido).ThenBy(e => e.Nombre)
-                .Select(e => new { e.Id, e.Nombre, e.Apellido, e.Diagnostico, Excluido = excluidos.Contains(e.Id) })
-                .ToListAsync();
-            return Results.Ok(estudiantes);
+                .Select(e => new { e.Id, e.Nombre, e.Apellido, e.Diagnostico, e.NivelTea, Excluido = excluidos.Contains(e.Id) })
+                .ToListAsync());
         });
 
         g.MapPut("/{id:int}/oas/{oaId:int}/exclusiones", async (int id, int oaId, ExclusionesRequest req, ClaimsPrincipal user, AppDb db) =>
@@ -112,17 +141,16 @@ public static class CursosEndpoints
             if (await db.CursoPropio(id, user) is null) return Results.NotFound();
             if (!await db.CursoObjetivos.AnyAsync(c => c.CursoId == id && c.ObjetivoId == oaId))
                 return Results.Problem("El OA no está asignado a este curso", statusCode: 400);
-            var delCurso = await db.Estudiantes.Where(e => e.CursoId == id && req.EstudianteIds.Contains(e.Id))
-                .Select(e => e.Id).ToListAsync();
+            var delCurso = await db.Estudiantes.Where(e => e.CursoId == id && req.EstudianteIds.Contains(e.Id)).Select(e => e.Id).ToListAsync();
             await db.Exclusiones.Where(x => x.CursoId == id && x.ObjetivoId == oaId).ExecuteDeleteAsync();
             db.Exclusiones.AddRange(delCurso.Select(eid => new ExclusionOA { CursoId = id, ObjetivoId = oaId, EstudianteId = eid }));
             await db.SaveChangesAsync();
             return Results.Ok(new { excluidos = delCurso.Count });
         });
 
-        // --- Panorama del curso (estudiantes PIE, diagnósticos, avance) ---
+        // --- Resumen del curso (panorama PIE, cobertura curricular, evaluaciones) ---
 
-        g.MapGet("/{id:int}/panorama", async (int id, ClaimsPrincipal user, AppDb db) =>
+        g.MapGet("/{id:int}/resumen", async (int id, ClaimsPrincipal user, AppDb db) =>
         {
             var curso = await db.CursoPropio(id, user);
             if (curso is null) return Results.NotFound();
@@ -131,30 +159,41 @@ public static class CursosEndpoints
                 .OrderBy(e => e.Apellido).ThenBy(e => e.Nombre)
                 .Select(e => new { e.Id, e.Nombre, e.Apellido, e.Diagnostico, e.NivelTea, TipoPie = e.TipoPie.ToString() })
                 .ToListAsync();
-
-            var oasPorAsignatura = await db.CursoObjetivos.Where(c => c.CursoId == id)
-                .GroupBy(c => c.Objetivo.Asignatura.Nombre)
-                .Select(gr => new { Asignatura = gr.Key, Total = gr.Count() })
-                .OrderBy(x => x.Asignatura)
-                .ToListAsync();
-
-            var planificaciones = await db.Planificaciones.CountAsync(p => p.CursoId == id);
-            var exclusiones = await db.Exclusiones.CountAsync(x => x.CursoId == id);
+            var oas = await db.CursoObjetivos.Where(c => c.CursoId == id)
+                .Select(c => new { Asignatura = c.Objetivo.Asignatura.Nombre, c.Objetivo.Asignatura.Color, c.Estado }).ToListAsync();
+            var evaluaciones = await db.Evaluaciones.Where(e => e.CursoId == id)
+                .OrderByDescending(e => e.CreadaEn)
+                .Select(e => new
+                {
+                    e.Id, e.Titulo, Estado = e.Estado.ToString(), Tipo = e.Tipo.ToString(),
+                    Entregas = db.Intentos.Count(i => i.EvaluacionId == e.Id && i.EntregadoEn != null && !i.EsPrueba),
+                    PorRevisar = db.Intentos.Count(i => i.EvaluacionId == e.Id && i.RevisionPendiente && !i.EsPrueba),
+                })
+                .Take(4).ToListAsync();
+            var logro = await Logro.PorOaAsync(db, cursoId: id);
 
             return Results.Ok(new
             {
-                Curso = new { curso.Id, Nombre = curso.Nivel.Nombre + " " + curso.Letra, curso.Anio },
+                Curso = new { curso.Id, Nombre = Dtos.NombreCurso(curso), curso.Anio, curso.Nivel.Ciclo },
                 TotalEstudiantes = estudiantes.Count,
                 Permanentes = estudiantes.Where(e => e.TipoPie == nameof(TipoPie.Permanente)),
                 Transitorios = estudiantes.Where(e => e.TipoPie == nameof(TipoPie.Transitorio)),
-                SinPie = estudiantes.Where(e => e.TipoPie == nameof(TipoPie.Ninguno)),
-                Diagnosticos = estudiantes.Where(e => e.Diagnostico != null)
-                    .GroupBy(e => e.Diagnostico!).Select(gr => new { Diagnostico = gr.Key, Total = gr.Count() })
-                    .OrderByDescending(x => x.Total),
-                OasPorAsignatura = oasPorAsignatura,
-                TotalOas = oasPorAsignatura.Sum(x => x.Total),
-                Planificaciones = planificaciones,
-                Exclusiones = exclusiones,
+                SinPie = estudiantes.Count(e => e.TipoPie == nameof(TipoPie.Ninguno)),
+                Diagnosticos = estudiantes.Where(e => e.Diagnostico != null).GroupBy(e => e.Diagnostico!)
+                    .Select(g => new { Diagnostico = g.Key, Total = g.Count() }).OrderByDescending(x => x.Total),
+                Cobertura = oas.GroupBy(o => new { o.Asignatura, o.Color }).OrderBy(g => g.Key.Asignatura).Select(g => new
+                {
+                    g.Key.Asignatura, g.Key.Color, Total = g.Count(),
+                    Cubiertos = g.Count(o => o.Estado == EstadoOa.Cubierto),
+                    EnProgreso = g.Count(o => o.Estado == EstadoOa.EnProgreso),
+                }),
+                TotalOas = oas.Count,
+                OasCubiertos = oas.Count(o => o.Estado == EstadoOa.Cubierto),
+                Exclusiones = await db.Exclusiones.CountAsync(x => x.CursoId == id),
+                Planificaciones = await db.Planificaciones.CountAsync(p => p.CursoId == id),
+                LogroPromedio = logro.Count == 0 ? (decimal?)null : Math.Round(logro.Values.Average(l => l.Porcentaje), 0),
+                OasPorLograr = logro.Values.Count(l => l.Porcentaje < 60),
+                Evaluaciones = evaluaciones,
             });
         });
     }

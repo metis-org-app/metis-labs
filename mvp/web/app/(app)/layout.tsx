@@ -5,26 +5,24 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api, getToken, setToken } from '@/lib/api';
 import { ConfirmHost } from '@/components/confirm';
-import { DEMO } from '@/lib/demo';
+import { Icon } from '@/components/icon';
 
 type Me = { nombre: string; rol: string };
+type CursoNav = { id: number; nombre: string; anio: number };
 
 const NAV = [
-  { href: '/', icon: '📊', label: 'Dashboard' },
-  { href: '/estudiantes', icon: '👥', label: 'Estudiantes' },
-  { href: '/cursos', icon: '🏫', label: 'Mis Cursos' },
-  { href: '/planificacion', icon: '🗓️', label: 'Planificación' },
-  { href: '/curriculum', icon: '📚', label: 'Currículum (OA)' },
-  { href: '/materiales', icon: '📁', label: 'Materiales' },
-  { href: '/notas', icon: '🗒️', label: 'Notas' },
-  { href: '/evaluaciones', icon: '📝', label: 'Evaluaciones', soon: true },
+  { href: '/', icon: 'inicio', label: 'Inicio' },
+  { href: '/cursos', icon: 'cursos', label: 'Mis cursos' },
+  { href: '/estudiantes', icon: 'estudiantes', label: 'Estudiantes' },
+  { href: '/curriculum', icon: 'curriculum', label: 'Currículum' },
+  { href: '/materiales', icon: 'materiales', label: 'Materiales' },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [me, setMe] = useState<Me | null>(null);
-  const [health, setHealth] = useState<string>('Conectando con el API…');
+  const [cursos, setCursos] = useState<CursoNav[]>([]);
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   useEffect(() => {
@@ -33,9 +31,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       return;
     }
     api<Me>('/auth/me').then(setMe).catch(() => undefined);
-    api<{ message: string; version: string }>('/health')
-      .then((h) => setHealth(`${h.message} · ${h.version}`))
-      .catch(() => setHealth('API no disponible ⚠️'));
+    const cargar = () => api<CursoNav[]>('/cursos').then(setCursos).catch(() => undefined);
+    cargar();
+    window.addEventListener('metis:cursos', cargar);
+    return () => window.removeEventListener('metis:cursos', cargar);
   }, [router]);
 
   useEffect(() => setMenuAbierto(false), [pathname]);
@@ -51,74 +50,55 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className={`shell ${menuAbierto ? 'menu-open' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-name">Profes TEA</div>
-          <div className="brand-user">
-            {me.nombre}
-            <br />
-            <span>{me.rol}</span>
-          </div>
+          <div className="brand-name">Metis</div>
+          <div className="brand-sub">Currículum, inclusión y evaluación</div>
         </div>
         <nav>
           {NAV.map((item) => {
-            const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+            const active = item.href === '/' ? pathname === '/' : pathname === item.href;
             return (
               <Link key={item.href} href={item.href} className={`nav-item ${active ? 'active' : ''}`}>
-                <span className="nav-icon">{item.icon}</span>
+                <Icon name={item.icon} />
                 {item.label}
-                {item.soon && <span className="nav-soon">pronto</span>}
               </Link>
             );
           })}
+          {cursos.length > 0 && (
+            <div className="nav-cursos">
+              <div className="nav-section">Mis cursos</div>
+              {cursos.map((c) => (
+                <Link key={c.id} href={`/cursos/${c.id}`} className={`nav-curso ${pathname.startsWith(`/cursos/${c.id}`) ? 'active' : ''}`}>
+                  {c.nombre}
+                  <span>{c.anio}</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </nav>
-        <button className="logout" onClick={salir}>
-          🚪 Cerrar Sesión
-        </button>
+        <div className="sidebar-foot">
+          <div className="user">
+            <div className="avatar">{me.nombre.split(' ').map((p) => p[0]).slice(0, 2).join('')}</div>
+            <div>
+              <div className="user-name">{me.nombre}</div>
+              <div className="user-rol">{me.rol}</div>
+            </div>
+          </div>
+          <button className="logout" onClick={salir} title="Cerrar sesión" aria-label="Cerrar sesión">
+            <Icon name="salir" />
+          </button>
+        </div>
       </aside>
       <div className="scrim" onClick={() => setMenuAbierto(false)} />
       <div className="main">
         <header className="topbar">
-          <button className="menu-btn" onClick={() => setMenuAbierto((v) => !v)} aria-label="Menú">
+          <button className="menu-btn" onClick={() => setMenuAbierto((v) => !v)} aria-label="Abrir menú">
             ☰
           </button>
-          <div className="topbar-title">Plataforma Educativa TEA</div>
-          <div className="health" title="Estado del API">
-            {health}
-          </div>
+          <div className="topbar-brand">Metis</div>
         </header>
-        {DEMO && <DemoBanner />}
         <main className="content">{children}</main>
       </div>
       <ConfirmHost />
-    </div>
-  );
-}
-
-function DemoBanner() {
-  const [confirmando, setConfirmando] = useState(false);
-  const restablecer = async () => {
-    await api('/__demo/reset', { method: 'POST' });
-    window.location.reload();
-  };
-  return (
-    <div className="demo-banner">
-      <span>
-        Demo en el navegador: los cambios se guardan solo en este dispositivo. Los estudiantes son ficticios.
-      </span>
-      {confirmando ? (
-        <span className="demo-actions">
-          ¿Volver a los datos iniciales?
-          <button className="btn btn-danger btn-sm" onClick={restablecer}>
-            Restablecer
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setConfirmando(false)}>
-            Cancelar
-          </button>
-        </span>
-      ) : (
-        <button className="btn btn-ghost btn-sm" onClick={() => setConfirmando(true)}>
-          Restablecer datos
-        </button>
-      )}
     </div>
   );
 }

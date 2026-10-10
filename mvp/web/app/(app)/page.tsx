@@ -3,98 +3,109 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import type { Dashboard } from '@/lib/types';
-import { DxBadge, ErrorBox, PageHead } from '@/components/ui';
+import type { Inicio } from '@/lib/types';
+import { Barra, Empty, ErrorBox, PageHead, Stat } from '@/components/ui';
 
-export default function DashboardPage() {
-  const [d, setD] = useState<Dashboard | null>(null);
+function saludo() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Buenos días' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
+}
+
+export default function InicioPage() {
+  const [d, setD] = useState<Inicio | null>(null);
+  const [nombre, setNombre] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api<Dashboard>('/dashboard').then(setD).catch((e) => setError(e.message));
+    api<Inicio>('/inicio').then(setD).catch((e) => setError(e.message));
+    api<{ nombre: string }>('/auth/me').then((m) => setNombre(m.nombre.split(' ')[0])).catch(() => undefined);
   }, []);
+
+  const pendientes = d ? d.porRevisar.length + d.borradores.length : 0;
 
   return (
     <>
-      <PageHead icon="📊" title="Dashboard" subtitle="Resumen de tus cursos, estudiantes y currículum" />
+      <PageHead title={`${saludo()}${nombre ? `, ${nombre}` : ''}`} subtitle="Esto es lo que tienes pendiente hoy." />
       <ErrorBox error={error} />
       {d && (
         <>
           <div className="stats">
-            <Stat valor={d.cursos} label="Cursos" color="blue" />
-            <Stat valor={d.estudiantes} label="Estudiantes" color="green" />
-            <Stat valor={d.oasAsignados} label="OA asignados" color="amber" />
-            <Stat valor={d.planificaciones} label="Planificaciones" color="red" />
+            <Stat valor={d.totales.cursos} label="Cursos" />
+            <Stat valor={d.totales.estudiantes} label="Estudiantes" detalle={`${d.totales.estudiantesPie} en PIE`} />
+            <Stat valor={d.totales.evaluacionesAbiertas} label="Evaluaciones abiertas" />
+            <Stat valor={d.porRevisar.reduce((s, x) => s + x.total, 0)} label="Respuestas por revisar" color={d.porRevisar.length ? 'amber' : undefined} />
           </div>
 
           <div className="grid-2">
-            <div className="card">
+            <section className="card">
+              <h2>Tareas</h2>
+              {pendientes === 0 && d.abiertas.length === 0 && <p className="muted">No tienes tareas pendientes.</p>}
+              <ul className="tareas">
+                {d.porRevisar.map((x) => (
+                  <li key={`r${x.id}`}>
+                    <span className="tarea-tipo t-revisar">Revisar</span>
+                    <div>
+                      <Link href={`/cursos/${x.cursoId}/evaluaciones/${x.id}?vista=resultados`}>{x.titulo}</Link>
+                      <div className="muted small">
+                        {x.curso} · {x.total} {x.total === 1 ? 'respuesta abierta' : 'respuestas abiertas'} por corregir
+                      </div>
+                    </div>
+                  </li>
+                ))}
+                {d.abiertas.map((x) => (
+                  <li key={`a${x.id}`}>
+                    <span className="tarea-tipo t-abierta">Abierta</span>
+                    <div>
+                      <Link href={`/cursos/${x.cursoId}/evaluaciones/${x.id}?vista=resultados`}>{x.titulo}</Link>
+                      <div className="muted small">
+                        {x.curso} · {x.entregas} de {x.estudiantes} entregas
+                      </div>
+                      <Barra valor={x.entregas} total={x.estudiantes} />
+                    </div>
+                  </li>
+                ))}
+                {d.borradores.map((x) => (
+                  <li key={`b${x.id}`}>
+                    <span className="tarea-tipo t-borrador">Borrador</span>
+                    <div>
+                      <Link href={`/cursos/${x.cursoId}/evaluaciones/${x.id}`}>{x.titulo}</Link>
+                      <div className="muted small">{x.curso} · sin publicar</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <section className="card">
               <h2>Mis cursos</h2>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Curso</th>
-                    <th>Estudiantes</th>
-                    <th>OA</th>
-                    <th>Planificaciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.resumenCursos.map((c) => (
-                    <tr key={c.id}>
-                      <td>
-                        <Link href={`/cursos?id=${c.id}`}>{c.nombre}</Link> <span className="muted">{c.anio}</span>
-                      </td>
-                      <td>{c.estudiantes}</td>
-                      <td>{c.oas}</td>
-                      <td>{c.planificaciones}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="card">
-              <h2>Estudiantes por diagnóstico</h2>
-              {d.diagnosticos.length === 0 && <p className="muted">Aún no hay diagnósticos registrados.</p>}
-              {d.diagnosticos.map((x) => (
-                <div key={x.diagnostico} className="bar-row">
-                  <DxBadge dx={x.diagnostico} />
-                  <div className="bar">
-                    <div className="bar-fill" style={{ width: `${(x.total / Math.max(d.estudiantes, 1)) * 100}%` }} />
-                  </div>
-                  <strong>{x.total}</strong>
-                </div>
-              ))}
-              <p className="muted small" style={{ marginTop: 16 }}>
-                {d.oasCurriculum} OA disponibles en el currículum cargado.
-              </p>
-            </div>
-          </div>
-
-          <div className="card ia-teaser">
-            <div>
-              <h2>📝 Evaluaciones con Evalia</h2>
-              <p className="muted">
-                El núcleo de Metis: evaluaciones por curso y OA con Evalia integrada, que guía al estudiante mientras responde sin darle
-                la respuesta. Esta demo cubre la gestión curricular sobre la que se van a construir.
-              </p>
-            </div>
-            <Link className="btn btn-ghost" href="/evaluaciones">
-              Ver propuesta
-            </Link>
+              {d.cursos.length === 0 && (
+                <Empty>
+                  Aún no tienes cursos. <Link href="/cursos">Crea el primero</Link>.
+                </Empty>
+              )}
+              <div className="curso-lista">
+                {d.cursos.map((c) => (
+                  <Link key={c.id} href={`/cursos/${c.id}`} className="curso-fila">
+                    <div>
+                      <strong>{c.nombre}</strong> <span className="muted small">{c.anio}</span>
+                      <div className="muted small">
+                        {c.estudiantes} estudiantes · {c.estudiantesPie} PIE
+                        {c.evaluacionesAbiertas > 0 && ` · ${c.evaluacionesAbiertas} evaluación abierta`}
+                      </div>
+                    </div>
+                    <div className="curso-fila-cob">
+                      <span className="small muted">
+                        {c.oasCubiertos}/{c.oas} OA cubiertos
+                      </span>
+                      <Barra valor={c.oasCubiertos} total={c.oas} />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
           </div>
         </>
       )}
     </>
-  );
-}
-
-function Stat({ valor, label, color }: { valor: number; label: string; color: string }) {
-  return (
-    <div className={`stat stat-${color}`}>
-      <div className="stat-value">{valor}</div>
-      <div className="stat-label">{label}</div>
-    </div>
   );
 }

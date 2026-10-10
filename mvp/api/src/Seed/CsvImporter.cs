@@ -9,7 +9,7 @@ public record ImportResultado(int Creados, int Actualizados, List<string> Errore
 
 /// Importa OAs desde CSV (separador coma, comillas dobles opcionales).
 /// Encabezado: asignatura,nivel,numero,eje,descripcion
-/// asignatura = código (LEN, MAT, CN, HIS) o nombre exacto; nivel = código (1B..8B, 1M..4M).
+/// asignatura = código MINEDUC (LE, MA, CN, HI) o nombre exacto; nivel = código (1B..8B, 1M..4M).
 public static class CsvImporter
 {
     public static async Task<ImportResultado> ImportarAsync(AppDb db, string csv)
@@ -29,8 +29,9 @@ public static class CsvImporter
             if (f.All(string.IsNullOrWhiteSpace)) continue;
             if (f.Count < 5) { errores.Add($"Línea {linea}: se esperaban 5 columnas"); continue; }
 
+            var codigo = f[0].Trim().ToUpperInvariant() switch { "LEN" => "LE", "MAT" => "MA", "HIS" => "HI", var c => c };
             var asig = asignaturas.FirstOrDefault(a =>
-                a.Codigo.Equals(f[0].Trim(), StringComparison.OrdinalIgnoreCase) ||
+                a.Codigo.Equals(codigo, StringComparison.OrdinalIgnoreCase) ||
                 a.Nombre.Equals(f[0].Trim(), StringComparison.OrdinalIgnoreCase));
             var nivel = niveles.FirstOrDefault(n => n.Codigo.Equals(f[1].Trim(), StringComparison.OrdinalIgnoreCase));
             if (asig is null) { errores.Add($"Línea {linea}: asignatura desconocida '{f[0]}'"); continue; }

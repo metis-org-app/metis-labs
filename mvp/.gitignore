@@ -4,4 +4,3 @@ bin/
 obj/
 *.tsbuildinfo
 .env
-demo/dist/

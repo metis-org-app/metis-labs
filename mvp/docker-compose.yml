@@ -18,7 +18,7 @@ services:
   api:
     build: ./api
     environment:
-      ConnectionStrings__Default: Host=db;Port=5432;Database=metis;Username=metis;Password=metis
+      ConnectionStrings__Default: Host=db;Port=5432;Database=metis;Username=metis;Password=metis;Gss Encryption Mode=Disable
       Seed__OasCsv: /data/oas.csv
       Seed__DemoEmail: ${DEMO_EMAIL:-profe@metis.cl}
       Seed__DemoPassword: ${DEMO_PASSWORD:-metis123}

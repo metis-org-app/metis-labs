@@ -16,15 +16,15 @@ public static class PlanificacionesEndpoints
         g.MapGet("/", async (int cursoId, ClaimsPrincipal user, AppDb db) =>
         {
             if (await db.CursoPropio(cursoId, user) is null) return Results.NotFound();
-            var lista = await db.Planificaciones.Where(p => p.CursoId == cursoId)
-                .OrderBy(p => p.SemanaInicio)
+            var lista = (await db.Planificaciones.Where(p => p.CursoId == cursoId)
+                .Include(p => p.Objetivos).ThenInclude(o => o.Asignatura)
+                .Include(p => p.Objetivos).ThenInclude(o => o.Nivel)
+                .OrderBy(p => p.SemanaInicio).ToListAsync())
                 .Select(p => new
                 {
                     p.Id, p.CursoId, p.SemanaInicio, p.Titulo, p.Actividades, p.Adecuaciones,
-                    Objetivos = p.Objetivos.OrderBy(o => o.Numero)
-                        .Select(o => new { o.Id, Codigo = "OA" + o.Numero, Asignatura = o.Asignatura.Nombre, o.Descripcion }),
-                })
-                .ToListAsync();
+                    Objetivos = p.Objetivos.OrderBy(o => o.Asignatura.Nombre).ThenBy(o => o.Numero).Select(Dtos.Oa),
+                });
             return Results.Ok(lista);
         });
 

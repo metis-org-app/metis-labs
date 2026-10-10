@@ -3,12 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { api, setToken } from '@/lib/api';
-import { DEMO } from '@/lib/demo';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('profe@metis.cl');
-  const [password, setPassword] = useState(DEMO ? 'metis123' : '');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
@@ -30,8 +29,8 @@ export default function LoginPage() {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={entrar}>
-        <div className="login-brand">Profes TEA</div>
-        <p className="muted">Plataforma Educativa TEA · Metis</p>
+        <div className="login-brand">Metis</div>
+        <p className="muted">Currículum, inclusión y evaluación para tu sala de clases</p>
         <label>
           Email
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" />
