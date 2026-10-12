@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: metis
       POSTGRES_PASSWORD: metis
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -30,7 +30,7 @@ services:
       - ./data:/data:ro
       - apikeys:/keys
     ports:
-      - "8080:8080"
+      - "${API_PORT:-8080}:8080"
     depends_on:
       db:
         condition: service_healthy
@@ -40,7 +40,7 @@ services:
     environment:
       API_URL: http://api:8080
     ports:
-      - "3000:3000"
+      - "${WEB_PORT:-3000}:3000"
     depends_on:
       - api
 

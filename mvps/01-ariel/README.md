@@ -1,4 +1,6 @@
-# Metis · MVP
+# Metis · MVP 01 (Ariel)
+
+> **Primer MVP, exploratorio y no definitivo.** Es una de las propuestas de `metis-labs/mvps/`; sirve para revisar ideas y comparar con los MVP del resto del equipo antes de decidir qué pasa a producción.
 
 Plataforma para profesores en Chile. Organiza el currículum de cada curso en **Objetivos de Aprendizaje (OA)**, acompaña a los estudiantes con necesidades educativas (PIE, TEA y otras) y permite crear con IA y aplicar **evaluaciones con el asistente Metis integrado** (el núcleo de Evalia). Metis guía al estudiante mientras responde sin darle la respuesta, y el profesor ve cada conversación.
 
@@ -7,7 +9,7 @@ Plataforma para profesores en Chile. Organiza el currículum de cada curso en **
 Requisitos: Docker Desktop (o Docker Engine con Compose).
 
 ```bash
-git clone https://github.com/metis-org-app/metis-labs && cd metis-labs/mvp
+git clone https://github.com/metis-org-app/metis-labs && cd metis-labs/mvps/01-ariel
 docker compose up --build
 ```
 
@@ -16,6 +18,8 @@ docker compose up --build
 | App | http://localhost:3000 |
 | API | http://localhost:8080/api/health |
 | PostgreSQL | localhost:5432 (metis / metis) |
+
+Si algún puerto ya está ocupado, copia `.env.example` a `.env` y cambia `DB_PORT`, `API_PORT` o `WEB_PORT`.
 
 **Usuario demo:** `profe@metis.cl` / `metis123`. Para cambiarlo, copia `.env.example` a `.env` antes del primer arranque.
 
