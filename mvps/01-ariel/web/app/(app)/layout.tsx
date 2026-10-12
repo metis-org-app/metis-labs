@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { api, getToken, setToken } from '@/lib/api';
 import { ConfirmHost } from '@/components/confirm';
 import { Icon } from '@/components/icon';
+import { Marca, MarcaIcono } from '@/components/marca';
 
 type Me = { nombre: string; rol: string };
 type CursoNav = { id: number; nombre: string; anio: number };
@@ -51,8 +52,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className={`shell ${menuAbierto ? 'menu-open' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-name">Metis</div>
-          <div className="brand-sub">Currículum, inclusión y evaluación</div>
+          <MarcaIcono />
+          <div>
+            <div className="brand-name">
+              Metis <em>Campus</em>
+            </div>
+            <div className="brand-sub">Currículum, inclusión y evaluación</div>
+          </div>
         </div>
         <Link href="/evaluaciones" className="nav-ia-cta">
           ✦ Crear evaluación con IA
@@ -99,7 +105,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button className="menu-btn" onClick={() => setMenuAbierto((v) => !v)} aria-label="Abrir menú">
             ☰
           </button>
-          <div className="topbar-brand">Metis</div>
+          <div className="topbar-brand">
+            <Marca chica />
+          </div>
         </header>
         <main className="content">{children}</main>
       </div>

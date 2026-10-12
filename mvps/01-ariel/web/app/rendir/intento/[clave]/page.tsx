@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { nota as fmtNota } from '@/lib/format';
+import { Marca } from '@/components/marca';
 
 type PreguntaEst = {
   id: number;
@@ -127,7 +128,7 @@ export default function RendirPage() {
     }, 700);
   };
 
-  if (error && !v) return <div className="rendir-ingreso"><div className="ingreso-card"><div className="ingreso-brand">Metis</div><div className="alert">{error}</div></div></div>;
+  if (error && !v) return <div className="rendir-ingreso"><div className="ingreso-card"><div className="ingreso-brand"><Marca chica /></div><div className="alert">{error}</div></div></div>;
   if (!v) return <div className="boot">Cargando…</div>;
 
   const p = v.preguntas[idx];
