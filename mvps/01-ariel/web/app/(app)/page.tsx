@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { Inicio } from '@/lib/types';
 import { Barra, Empty, ErrorBox, PageHead, Stat } from '@/components/ui';
+import { HeroIa } from '@/components/evaluacion/hero-ia';
 
 function saludo() {
   const h = new Date().getHours();
@@ -29,6 +30,7 @@ export default function InicioPage() {
       <ErrorBox error={error} />
       {d && (
         <>
+          {d.cursos.length > 0 && <HeroIa cursos={d.cursos} />}
           <div className="stats">
             <Stat valor={d.totales.cursos} label="Cursos" />
             <Stat valor={d.totales.estudiantes} label="Estudiantes" detalle={`${d.totales.estudiantesPie} en PIE`} />

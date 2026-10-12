@@ -6,12 +6,14 @@ import { useEffect, useState } from 'react';
 import { api, getToken, setToken } from '@/lib/api';
 import { ConfirmHost } from '@/components/confirm';
 import { Icon } from '@/components/icon';
+import { Marca, MarcaIcono } from '@/components/marca';
 
 type Me = { nombre: string; rol: string };
 type CursoNav = { id: number; nombre: string; anio: number };
 
-const NAV = [
+const NAV: { href: string; icon: string; label: string; badge?: string }[] = [
   { href: '/', icon: 'inicio', label: 'Inicio' },
+  { href: '/evaluaciones', icon: 'evaluaciones', label: 'Evaluaciones', badge: 'IA' },
   { href: '/cursos', icon: 'cursos', label: 'Mis cursos' },
   { href: '/estudiantes', icon: 'estudiantes', label: 'Estudiantes' },
   { href: '/curriculum', icon: 'curriculum', label: 'Currículum' },
@@ -50,9 +52,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className={`shell ${menuAbierto ? 'menu-open' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-name">Metis</div>
-          <div className="brand-sub">Currículum, inclusión y evaluación</div>
+          <MarcaIcono />
+          <div>
+            <div className="brand-name">
+              Metis <em>Campus</em>
+            </div>
+            <div className="brand-sub">Currículum, inclusión y evaluación</div>
+          </div>
         </div>
+        <Link href="/evaluaciones" className="nav-ia-cta">
+          ✦ Crear evaluación con IA
+        </Link>
         <nav>
           {NAV.map((item) => {
             const active = item.href === '/' ? pathname === '/' : pathname === item.href;
@@ -60,6 +70,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Link key={item.href} href={item.href} className={`nav-item ${active ? 'active' : ''}`}>
                 <Icon name={item.icon} />
                 {item.label}
+                {item.badge && <span className="nav-badge">{item.badge}</span>}
               </Link>
             );
           })}
@@ -94,7 +105,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button className="menu-btn" onClick={() => setMenuAbierto((v) => !v)} aria-label="Abrir menú">
             ☰
           </button>
-          <div className="topbar-brand">Metis</div>
+          <div className="topbar-brand">
+            <Marca chica />
+          </div>
         </header>
         <main className="content">{children}</main>
       </div>

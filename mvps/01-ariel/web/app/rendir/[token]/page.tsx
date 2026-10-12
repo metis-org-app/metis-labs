@@ -3,6 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { Marca } from '@/components/marca';
 
 type Info = { titulo: string; instrucciones: string | null; asignatura: string; curso: string; anio: number; duracionMinutos: number; estado: string; asistenteActivo: boolean; preguntas: number };
 
@@ -34,7 +35,7 @@ export default function IngresoPage() {
   return (
     <div className="rendir-ingreso">
       <form className="ingreso-card" onSubmit={entrar}>
-        <div className="ingreso-brand">Metis</div>
+        <div className="ingreso-brand"><Marca chica /></div>
         {!info && !error && <p className="muted">Cargando…</p>}
         {info && (
           <>

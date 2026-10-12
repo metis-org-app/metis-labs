@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { api, setToken } from '@/lib/api';
+import { Marca } from '@/components/marca';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,7 +30,10 @@ export default function LoginPage() {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={entrar}>
-        <div className="login-brand">Metis</div>
+        <img src="/metis.png" alt="" aria-hidden="true" className="login-avatar" />
+        <div className="login-brand">
+          <Marca />
+        </div>
         <p className="muted">Currículum, inclusión y evaluación para tu sala de clases</p>
         <label>
           Email

@@ -148,7 +148,7 @@ function LinkModal({ token, titulo, curso, onClose }: { token: string; titulo: s
   const [qr, setQr] = useState<string | null>(null);
   useEffect(() => {
     // El QR se genera en el navegador: sirve para proyectarlo en la sala y que los estudiantes entren desde el celular.
-    import('qrcode').then((m) => m.toDataURL(url, { width: 220, margin: 1, color: { dark: '#0c1f38' } })).then(setQr).catch(() => setQr(null));
+    import('qrcode').then((m) => m.toDataURL(url, { width: 220, margin: 1, color: { dark: '#221b10' } })).then(setQr).catch(() => setQr(null));
   }, [url]);
   const copiar = async () => {
     try {

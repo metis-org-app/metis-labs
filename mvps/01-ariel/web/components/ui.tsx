@@ -73,11 +73,11 @@ export function Barra({ valor, total, color }: { valor: number; total: number; c
   );
 }
 
-export function Tabs<T extends string>({ tabs, activo, onChange }: { tabs: [T, string, number?][]; activo: T; onChange: (t: T) => void }) {
+export function Tabs<T extends string>({ tabs, activo, onChange }: { tabs: [T, string, number?, string?][]; activo: T; onChange: (t: T) => void }) {
   return (
     <div className="tabs" role="tablist">
-      {tabs.map(([k, label, n]) => (
-        <button key={k} role="tab" aria-selected={activo === k} className={`tab ${activo === k ? 'active' : ''}`} onClick={() => onChange(k)}>
+      {tabs.map(([k, label, n, clase]) => (
+        <button key={k} role="tab" aria-selected={activo === k} className={`tab ${clase ?? ''} ${activo === k ? 'active' : ''}`} onClick={() => onChange(k)}>
           {label}
           {n != null && <span className="tab-n">{n}</span>}
         </button>
