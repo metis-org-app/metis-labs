@@ -1,7 +1,7 @@
 'use client';
 
-import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { CursoDetalle } from '@/lib/types';
 import { NuevaEvaluacion } from '@/components/curso/evaluaciones';
@@ -9,16 +9,26 @@ import { CrearConIa, type Modo } from '@/components/evaluacion/crear';
 import { ErrorBox, PageHead } from '@/components/ui';
 
 const OPCIONES: { modo: Modo | 'cero'; icono: string; titulo: string; texto: string; clase: string }[] = [
-  { modo: 'ia', icono: '★', titulo: 'Generar con IA', texto: 'Parte de una consigna breve y de los OA del curso: Metis crea la evaluación completa.', clase: 'op-ia' },
+  { modo: 'ia', icono: '✦', titulo: 'Generar con IA', texto: 'Escribe una consigna breve y Metis crea la evaluación completa desde los OA del curso: preguntas, pauta, pistas para cada estudiante y adecuaciones.', clase: 'op-ia' },
   { modo: 'pegar', icono: '≡', titulo: 'Pegar contenido', texto: 'Convierte apuntes, un texto o un temario en preguntas alineadas a los OA.', clase: 'op-pegar' },
   { modo: 'archivo', icono: '⇪', titulo: 'Importar archivo', texto: 'Sube un PDF, Word o PowerPoint como material de origen.', clase: 'op-archivo' },
   { modo: 'cero', icono: '✎', titulo: 'Desde cero', texto: 'Escribe tú cada pregunta en el editor.', clase: 'op-cero' },
 ];
 
 export default function NuevaEvaluacionPage() {
+  return (
+    <Suspense>
+      <Nueva />
+    </Suspense>
+  );
+}
+
+function Nueva() {
   const { id } = useParams<{ id: string }>();
+  const params = useSearchParams();
   const [curso, setCurso] = useState<CursoDetalle | null>(null);
-  const [modo, setModo] = useState<Modo | 'cero' | null>(null);
+  // Desde el acceso "Generar evaluación" se llega directo al flujo con IA y la consigna escrita.
+  const [modo, setModo] = useState<Modo | 'cero' | null>(params.get('modo') === 'ia' ? 'ia' : null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,6 +57,7 @@ export default function NuevaEvaluacionPage() {
                   {o.icono}
                 </span>
                 <span className="empezar-texto">
+                  {o.modo === 'ia' && <span className="empezar-badge">Recomendado</span>}
                   <strong>{o.titulo}</strong>
                   <span>{o.texto}</span>
                 </span>
@@ -56,7 +67,7 @@ export default function NuevaEvaluacionPage() {
           <p className="muted small">¿No sabes cuál elegir? Empieza con IA: siempre tendrás el control de cada pregunta.</p>
         </section>
       )}
-      {modo && modo !== 'cero' && <CrearConIa key={modo} curso={curso} modo={modo} onVolver={() => setModo(null)} />}
+      {modo && modo !== 'cero' && <CrearConIa key={modo} curso={curso} modo={modo} onVolver={() => setModo(null)} consignaInicial={modo === 'ia' ? (params.get('consigna') ?? '') : ''} />}
       {modo === 'cero' && <NuevaEvaluacion curso={curso} onClose={() => setModo(null)} />}
     </>
   );

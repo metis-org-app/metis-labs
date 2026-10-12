@@ -73,11 +73,11 @@ function Curso() {
         onChange={irA}
         tabs={[
           ['resumen', 'Resumen'],
+          ['evaluaciones', '✦ Evaluaciones con IA', undefined, 'tab-ia'],
           ['estudiantes', 'Estudiantes', curso.totalEstudiantes],
           ['curriculo', 'Currículum', curso.totalOas],
           ['planificacion', 'Planificación'],
           ['materiales', 'Materiales'],
-          ['evaluaciones', 'Evaluaciones'],
         ]}
       />
       <div className="tab-panel">

@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { fecha, NIVEL_AYUDA, nota } from '@/lib/format';
 import type { CursoDetalle, CursoOa, EvaluacionResumen, TipoEvaluacion } from '@/lib/types';
 import { Barra, Empty, ErrorBox, EstadoEval, Modal, OaTag } from '../ui';
+import { HeroIa } from '../evaluacion/hero-ia';
 
 export function EvaluacionesCurso({ curso }: { curso: CursoDetalle }) {
   const [lista, setLista] = useState<EvaluacionResumen[] | null>(null);
@@ -17,51 +18,54 @@ export function EvaluacionesCurso({ curso }: { curso: CursoDetalle }) {
 
   return (
     <>
-      <div className="section-head">
-        <p className="muted">
-          Evaluaciones del curso con el asistente <strong>Metis</strong> integrado: guía a cada estudiante mientras responde, sin darle la respuesta, y
-          tú ves cada conversación.
-        </p>
-        <Link className="btn btn-primary" href={`/cursos/${curso.id}/evaluaciones/nueva`}>
-          + Nueva evaluación
-        </Link>
-      </div>
+      <HeroIa cursos={[curso]} compacto />
+      <p className="muted">
+        Evaluaciones del curso con el asistente <strong>Metis</strong> integrado: guía a cada estudiante mientras responde, sin darle la respuesta, y tú
+        ves cada conversación.
+      </p>
       {lista?.length === 0 && <Empty>Aún no hay evaluaciones. Crea la primera con IA a partir de los OA del curso, de tus apuntes o de un archivo.</Empty>}
       <div className="eval-grid">
         {lista?.map((e) => (
-          <Link key={e.id} href={`/cursos/${curso.id}/evaluaciones/${e.id}${e.estado === 'Borrador' ? '' : '?vista=resultados'}`} className="eval-card">
-            <div className="eval-top">
-              <EstadoEval estado={e.estado} />
-              <span className="chip">{e.tipo}</span>
-              <span className="muted small">{e.asignatura}</span>
-            </div>
-            <h3>{e.titulo}</h3>
-            <div className="oa-tags">
-              {e.oas.map((o) => (
-                <OaTag key={o.id} oa={o} compacto />
-              ))}
-              {e.oas.length === 0 && <span className="muted small">Sin OA vinculados</span>}
-            </div>
-            <div className="eval-meta small muted">
-              {e.preguntas} preguntas · {e.puntajeTotal} pts · {e.duracionMinutos} min ·{' '}
-              {e.asistenteActivo ? `Metis: ${NIVEL_AYUDA[e.nivelAyuda].split(' · ')[1].toLowerCase()}` : 'Metis desactivado'}
-            </div>
-            {e.estado !== 'Borrador' ? (
-              <div className="eval-progreso">
-                <div className="small">
-                  {e.entregas} de {e.totalEstudiantes} entregas
-                  {e.porRevisar > 0 && <span className="warn"> · {e.porRevisar} por revisar</span>}
-                  {e.tipo === 'Sumativa' || e.promedio != null ? <span> · Promedio {nota(e.promedio)}</span> : null}
-                </div>
-                <Barra valor={e.entregas} total={e.totalEstudiantes} />
-              </div>
-            ) : (
-              <div className="small muted">Creada el {fecha(e.creadaEn)} · sin publicar</div>
-            )}
-          </Link>
+          <EvalCard key={e.id} e={e} cursoId={curso.id} />
         ))}
       </div>
     </>
+  );
+}
+
+export function EvalCard({ e, cursoId, curso }: { e: EvaluacionResumen; cursoId: number; curso?: string }) {
+  return (
+    <Link href={`/cursos/${cursoId}/evaluaciones/${e.id}${e.estado === 'Borrador' ? '' : '?vista=resultados'}`} className="eval-card eval-ia-borde">
+      <div className="eval-top">
+        <EstadoEval estado={e.estado} />
+        <span className="chip">{e.tipo}</span>
+        <span className="muted small">{e.asignatura}</span>
+      </div>
+      {curso && <div className="eval-curso">{curso}</div>}
+      <h3>{e.titulo}</h3>
+      <div className="oa-tags">
+        {e.oas.map((o) => (
+          <OaTag key={o.id} oa={o} compacto />
+        ))}
+        {e.oas.length === 0 && <span className="muted small">Sin OA vinculados</span>}
+      </div>
+      <div className="eval-meta small muted">
+        {e.preguntas} preguntas · {e.puntajeTotal} pts · {e.duracionMinutos} min ·{' '}
+        {e.asistenteActivo ? `Metis: ${NIVEL_AYUDA[e.nivelAyuda].split(' · ')[1].toLowerCase()}` : 'Metis desactivado'}
+      </div>
+      {e.estado !== 'Borrador' ? (
+        <div className="eval-progreso">
+          <div className="small">
+            {e.entregas} de {e.totalEstudiantes} entregas
+            {e.porRevisar > 0 && <span className="warn"> · {e.porRevisar} por revisar</span>}
+            {e.tipo === 'Sumativa' || e.promedio != null ? <span> · Promedio {nota(e.promedio)}</span> : null}
+          </div>
+          <Barra valor={e.entregas} total={e.totalEstudiantes} />
+        </div>
+      ) : (
+        <div className="small muted">Creada el {fecha(e.creadaEn)} · sin publicar</div>
+      )}
+    </Link>
   );
 }
 

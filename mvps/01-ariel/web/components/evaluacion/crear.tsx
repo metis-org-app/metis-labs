@@ -32,7 +32,7 @@ const PASOS = ['Idea', 'Procesando', 'Esquema', 'Crear'];
 const MENSAJES_PROCESO = ['Leyendo tus materiales…', 'Alineando con los OA del curso…', 'Redactando preguntas y alternativas…', 'Escribiendo pistas para Metis…', 'Revisando que todo sea claro…'];
 const TIPOS: TipoPregunta[] = ['Unica', 'Multiple', 'VerdaderoFalso', 'Abierta'];
 
-export function CrearConIa({ curso, modo, onVolver }: { curso: CursoDetalle; modo: Modo; onVolver: () => void }) {
+export function CrearConIa({ curso, modo, onVolver, consignaInicial }: { curso: CursoDetalle; modo: Modo; onVolver: () => void; consignaInicial?: string }) {
   const router = useRouter();
   const [paso, setPaso] = useState(0);
   const [oasCurso, setOasCurso] = useState<Oa[] | null>(null);
@@ -42,7 +42,7 @@ export function CrearConIa({ curso, modo, onVolver }: { curso: CursoDetalle; mod
 
   // Idea
   const [asignaturaId, setAsignaturaId] = useState(0);
-  const [consigna, setConsigna] = useState('');
+  const [consigna, setConsigna] = useState(consignaInicial ?? '');
   const [oaIds, setOaIds] = useState<Set<number>>(new Set());
   const [materialIds, setMaterialIds] = useState<Set<number>>(new Set());
   const [cantidad, setCantidad] = useState(8);
