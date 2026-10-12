@@ -7,8 +7,7 @@ Plataforma para profesores en Chile. Organiza el currículum de cada curso en **
 Requisitos: Docker Desktop (o Docker Engine con Compose).
 
 ```bash
-git clone <este repo> && cd <carpeta>
-git checkout metis-app-mvp
+git clone https://github.com/metis-org-app/metis-labs && cd metis-labs/mvp
 docker compose up --build
 ```
 
