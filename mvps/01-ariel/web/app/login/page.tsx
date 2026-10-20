@@ -8,7 +8,8 @@ import { Marca } from '@/components/marca';
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('profe@metis.cl');
-  const [password, setPassword] = useState('');
+  // En la demo de presentación la contraseña viene escrita para entrar con un clic.
+  const [password, setPassword] = useState(process.env.NEXT_PUBLIC_DEMO === '1' ? 'metis123' : '');
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 

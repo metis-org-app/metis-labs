@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { DemoAviso } from '@/components/demo-aviso';
 
 export const metadata: Metadata = {
   title: 'Metis Campus',
@@ -18,7 +19,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        {process.env.NEXT_PUBLIC_DEMO === '1' && <DemoAviso />}
+      </body>
     </html>
   );
 }

@@ -1,0 +1,11 @@
+# Demo de presentación del MVP 01 en Netlify (sin API ni base de datos: los datos viven en el navegador).
+# En Netlify: Add new site → Import from Git → metis-org-app/metis-labs, con Base directory = mvps/01-ariel/web.
+# Netlify detecta Next.js y usa su adaptador; este archivo solo fija la versión de Node y activa el modo demo.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_PUBLIC_DEMO = "1"
+  NEXT_TELEMETRY_DISABLED = "1"

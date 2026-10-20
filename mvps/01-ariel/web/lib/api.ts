@@ -25,6 +25,14 @@ export class ApiError extends Error {
   }
 }
 
+// Demo de presentación (NEXT_PUBLIC_DEMO=1): las llamadas las responde un backend simulado en el navegador (demo/servidor.ts).
+// Sin la variable, todo va a la API real a través de /api.
+const DEMO = process.env.NEXT_PUBLIC_DEMO === '1';
+
+export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  return DEMO ? import('@/demo/servidor').then((m) => m.responder(url, init)) : fetch(url, init);
+}
+
 export async function api<T = unknown>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
   const headers = new Headers(init.headers);
   const token = getToken();
@@ -35,7 +43,7 @@ export async function api<T = unknown>(path: string, init: RequestInit & { json?
     body = JSON.stringify(init.json);
   }
 
-  const res = await fetch(`/api${path}`, { ...init, headers, body, cache: 'no-store' });
+  const res = await apiFetch(`/api${path}`, { ...init, headers, body, cache: 'no-store' });
 
   if (res.status === 401 && !path.startsWith('/auth/login')) {
     setToken(null);

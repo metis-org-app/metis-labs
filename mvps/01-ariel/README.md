@@ -36,6 +36,12 @@ El modelo por defecto es `claude-opus-5-5` (se cambia con `IA_MODELO`). Si un fi
 
 Para volver a los datos de ejemplo (borra todo): `docker compose down -v && docker compose up --build`.
 
+## Demo de presentación (Netlify)
+
+Hay una versión sin servidor para presentaciones. Usa la misma web, con los datos de ejemplo en el navegador y la IA simulada, y se publica en Netlify con **Base directory** `mvps/01-ariel/web`. Detalles en [`web/demo/README.md`](web/demo/README.md).
+
+Para probarla en local: `cd web && NEXT_PUBLIC_DEMO=1 npm run dev`. Sin esa variable, la app usa la API real.
+
 ## Recorrido sugerido para la demo
 
 1. **Inicio:** muestra las tareas del profesor: respuestas por revisar, evaluaciones abiertas y borradores.

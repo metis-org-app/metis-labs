@@ -12,7 +12,7 @@ Prototipos, MVPs y pruebas de concepto de Metis: un espacio para experimentar an
 
 | MVP | Autor | Estado | Resumen |
 |---|---|---|---|
-| [`01-ariel`](mvps/01-ariel/) | Ariel | Primer MVP, exploratorio | App local con Docker (API, web y PostgreSQL): currículum oficial por OA, estudiantes PIE/TEA y evaluaciones con el asistente Metis (Evalia). Viene con su historial desde la rama `metis-app-mvp` de `metis-studio`. |
+| [`01-ariel`](mvps/01-ariel/) | Ariel | Primer MVP, exploratorio | App local con Docker (API, web y PostgreSQL): currículum oficial por OA, estudiantes PIE/TEA y evaluaciones con el asistente Metis (Evalia). Viene con su historial desde la rama `metis-app-mvp` de `metis-studio`. Tiene una [demo de presentación](mvps/01-ariel/web/demo/README.md) para Netlify, sin servidor. |
 
 Para sumar un MVP, crea `mvps/<siguiente número>-<tu nombre>/` con su propio README y agrégalo a esta tabla.
 

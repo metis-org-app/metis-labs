@@ -1,7 +1,7 @@
 'use client';
 
 import { CSSProperties, useEffect, useState } from 'react';
-import { api, getToken } from '@/lib/api';
+import { api, apiFetch, getToken } from '@/lib/api';
 import { TIPO_MATERIAL } from '@/lib/format';
 import type { Asignatura, Curso, Material, Nivel, Oa, TipoMaterial } from '@/lib/types';
 import { confirmar } from './confirm';
@@ -104,7 +104,7 @@ export function MaterialViewer({ id, onClose, onEdit, onDeleted }: { id: number;
 
 // La descarga lleva el token de sesión, por eso se pide con fetch y se entrega como blob.
 async function descargarArchivo(id: number, nombre: string) {
-  const res = await fetch(`/api/materiales/${id}/archivo`, { headers: { authorization: `Bearer ${getToken() ?? ''}` } });
+  const res = await apiFetch(`/api/materiales/${id}/archivo`, { headers: { authorization: `Bearer ${getToken() ?? ''}` } });
   if (!res.ok) return;
   const url = URL.createObjectURL(await res.blob());
   const a = Object.assign(document.createElement('a'), { href: url, download: nombre });
