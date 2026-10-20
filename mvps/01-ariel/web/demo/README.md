@@ -23,9 +23,14 @@ En la demo:
 
 ## Publicar en Netlify
 
+La demo vive en la rama `demo/netlify` y no se mergea a `main`, así el MVP real no cambia.
+
 1. En Netlify: **Add new site → Import an existing project → GitHub → `metis-org-app/metis-labs`**.
-2. **Base directory:** `mvps/01-ariel/web`. El resto lo toma de `netlify.toml`: Node 22, `NEXT_PUBLIC_DEMO=1` y el adaptador de Next.js.
-3. **Deploy.** Cada push a `main` vuelve a publicar.
+2. **Branch to deploy:** `demo/netlify`.
+3. **Base directory:** `mvps/01-ariel/web`. El resto lo toma de `netlify.toml`: Node 22, `NEXT_PUBLIC_DEMO=1` y el adaptador de Next.js.
+4. **Deploy.** Cada push a `demo/netlify` vuelve a publicar.
+
+Para actualizar la demo con cambios del MVP: `git checkout demo/netlify && git merge origin/main` y push.
 
 Usuario: `profe@metis.cl` / `metis123` (la contraseña aparece escrita). Para el estudiante, abre `/rendir/seres-vivos-1a` y entra con un RUT de la nómina, por ejemplo `26.100.005-9` (Agustín, que todavía no la rinde).
 
